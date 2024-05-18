@@ -77,17 +77,41 @@ const init = () => {
   if (!program) return;
   gl.useProgram(program);
 
+  // key mappings
+  const Actions = {
+    MOVE_UP: 'move_up',
+    MOVE_DOWN: 'move_down',
+    MOVE_LEFT: 'move_left',
+    MOVE_RIGHT: 'move_right',
+  } as const;
+
+  type Action = (typeof Actions)[keyof typeof Actions];
+
+  // Default key mappings
+  const defaultKeyMappings: Record<string, Action> = {
+    w: Actions.MOVE_UP,
+    ArrowUp: Actions.MOVE_UP,
+    s: Actions.MOVE_DOWN,
+    ArrowDown: Actions.MOVE_DOWN,
+    a: Actions.MOVE_LEFT,
+    ArrowLeft: Actions.MOVE_LEFT,
+    d: Actions.MOVE_RIGHT,
+    ArrowRight: Actions.MOVE_RIGHT,
+  };
+
+  const keyMappings = { ...defaultKeyMappings };
+
   // game code
   const dotPosition: [number, number] = [0.0, 0.0];
-  const dotColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red dot
+  const dotColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red
   const moveSpeed = 0.01;
-  const keysPressed = { w: false, s: false, a: false, d: false };
+  const keysPressed: Record<string, boolean> = {};
 
   const updatePosition = () => {
-    if (keysPressed.w) dotPosition[1] += moveSpeed;
-    if (keysPressed.s) dotPosition[1] -= moveSpeed;
-    if (keysPressed.a) dotPosition[0] -= moveSpeed;
-    if (keysPressed.d) dotPosition[0] += moveSpeed;
+    if (keysPressed[Actions.MOVE_UP]) dotPosition[1] += moveSpeed;
+    if (keysPressed[Actions.MOVE_DOWN]) dotPosition[1] -= moveSpeed;
+    if (keysPressed[Actions.MOVE_LEFT]) dotPosition[0] -= moveSpeed;
+    if (keysPressed[Actions.MOVE_RIGHT]) dotPosition[0] += moveSpeed;
   };
 
   const drawScene = () => {
@@ -103,16 +127,14 @@ const init = () => {
     requestAnimationFrame(main);
   };
 
-  window.addEventListener('keydown', (event: KeyboardEvent) => {
-    if (event.key in keysPressed) {
-      keysPressed[event.key as keyof typeof keysPressed] = true;
-    }
+  window.addEventListener('keydown', ({ key }: KeyboardEvent) => {
+    const action = keyMappings[key];
+    if (action) keysPressed[action] = true;
   });
 
-  window.addEventListener('keyup', (event: KeyboardEvent) => {
-    if (event.key in keysPressed) {
-      keysPressed[event.key as keyof typeof keysPressed] = false;
-    }
+  window.addEventListener('keyup', ({ key }: KeyboardEvent) => {
+    const action = keyMappings[key];
+    if (action) keysPressed[action] = false;
   });
 
   main();
