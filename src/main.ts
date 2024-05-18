@@ -2,6 +2,7 @@ const vertexShaderSource = `
   attribute vec2 a_position;
   void main() {
     gl_Position = vec4(a_position, 0.0, 1.0);
+    gl_PointSize = 10.0;
   }
 `;
 
@@ -43,7 +44,22 @@ const createProgram = (
   return null;
 };
 
-const main = () => {
+const drawDot = (gl: WebGL2RenderingContext, program: WebGLProgram, position: [number, number], color: [number, number, number, number]) => {
+  const positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(position), gl.STATIC_DRAW);
+
+  const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+  gl.enableVertexAttribArray(positionAttributeLocation);
+  gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+  const colorLocation = gl.getUniformLocation(program, 'u_color');
+  gl.uniform4fv(colorLocation, color);
+
+  gl.drawArrays(gl.POINTS, 0, 1);
+};
+
+const init = () => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
   const gl = canvas.getContext('webgl2');
 
@@ -59,23 +75,47 @@ const main = () => {
 
   const program = createProgram(gl, vertexShader, fragmentShader);
   if (!program) return;
-
-  const positionBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  const positions = [
-    0.0, -1.0,
-    0.0, 1.0
-  ];
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-  const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
-  gl.enableVertexAttribArray(positionAttributeLocation);
-  gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-
-  gl.clearColor(1.0, 1.0, 1.0, 1.0);
-  gl.clear(gl.COLOR_BUFFER_BIT);
   gl.useProgram(program);
-  gl.drawArrays(gl.LINES, 0, 2);
+
+  // game code
+  const dotPosition: [number, number] = [0.0, 0.0];
+  const dotColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red dot
+  const moveSpeed = 0.01;
+  const keysPressed = { w: false, s: false, a: false, d: false };
+
+  const updatePosition = () => {
+    if (keysPressed.w) dotPosition[1] += moveSpeed;
+    if (keysPressed.s) dotPosition[1] -= moveSpeed;
+    if (keysPressed.a) dotPosition[0] -= moveSpeed;
+    if (keysPressed.d) dotPosition[0] += moveSpeed;
+  };
+
+  const drawScene = () => {
+    gl.clearColor(1.0, 1.0, 1.0, 1.0); // Clear to white color
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    drawDot(gl, program, dotPosition, dotColor); // Drawing the dot
+  };
+
+  const main = () => {
+    updatePosition();
+    drawScene();
+    requestAnimationFrame(main);
+  };
+
+  window.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (event.key in keysPressed) {
+      keysPressed[event.key as keyof typeof keysPressed] = true;
+    }
+  });
+
+  window.addEventListener('keyup', (event: KeyboardEvent) => {
+    if (event.key in keysPressed) {
+      keysPressed[event.key as keyof typeof keysPressed] = false;
+    }
+  });
+
+  main();
 };
 
-main();
+init();
