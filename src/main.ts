@@ -69,36 +69,34 @@ const dotColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red
 const moveSpeed = 0.01;
 
 // key mappings
-const Actions = {
-  MOVE_UP: 'move_up',
-  MOVE_DOWN: 'move_down',
-  MOVE_LEFT: 'move_left',
-  MOVE_RIGHT: 'move_right',
-} as const;
-
-type Action = (typeof Actions)[keyof typeof Actions];
+enum Action {
+  MOVE_UP = 'MOVE_UP',
+  MOVE_DOWN = 'MOVE_DOWN',
+  MOVE_LEFT = 'MOVE_LEFT',
+  MOVE_RIGHT = 'MOVE_RIGHT',
+}
 
 // Default key mappings
-const defaultKeyMappings: Record<string, Action> = {
-  w: Actions.MOVE_UP,
-  ArrowUp: Actions.MOVE_UP,
-  s: Actions.MOVE_DOWN,
-  ArrowDown: Actions.MOVE_DOWN,
-  a: Actions.MOVE_LEFT,
-  ArrowLeft: Actions.MOVE_LEFT,
-  d: Actions.MOVE_RIGHT,
-  ArrowRight: Actions.MOVE_RIGHT,
+const defaultKeyMappings: Record<KeyboardEvent['key'], Action> = {
+  w: Action.MOVE_UP,
+  ArrowUp: Action.MOVE_UP,
+  s: Action.MOVE_DOWN,
+  ArrowDown: Action.MOVE_DOWN,
+  a: Action.MOVE_LEFT,
+  ArrowLeft: Action.MOVE_LEFT,
+  d: Action.MOVE_RIGHT,
+  ArrowRight: Action.MOVE_RIGHT,
 };
 
 const keyMappings = { ...defaultKeyMappings };
 
-const keysPressed: Record<string, boolean> = {};
+const keysPressed: Partial<Record<Action, boolean>> = {};
 
 const updatePosition = () => {
-  if (keysPressed[Actions.MOVE_UP]) dotPosition[1] += moveSpeed;
-  if (keysPressed[Actions.MOVE_DOWN]) dotPosition[1] -= moveSpeed;
-  if (keysPressed[Actions.MOVE_LEFT]) dotPosition[0] -= moveSpeed;
-  if (keysPressed[Actions.MOVE_RIGHT]) dotPosition[0] += moveSpeed;
+  if (keysPressed[Action.MOVE_UP]) dotPosition[1] += moveSpeed;
+  if (keysPressed[Action.MOVE_DOWN]) dotPosition[1] -= moveSpeed;
+  if (keysPressed[Action.MOVE_LEFT]) dotPosition[0] -= moveSpeed;
+  if (keysPressed[Action.MOVE_RIGHT]) dotPosition[0] += moveSpeed;
 };
 
 window.addEventListener('keydown', ({ key }: KeyboardEvent) => {
