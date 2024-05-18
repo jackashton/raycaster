@@ -44,7 +44,12 @@ const createProgram = (
   return null;
 };
 
-const drawDot = (gl: WebGL2RenderingContext, program: WebGLProgram, position: [number, number], color: [number, number, number, number]) => {
+const drawDot = (
+  gl: WebGL2RenderingContext,
+  program: WebGLProgram,
+  position: [number, number],
+  color: [number, number, number, number],
+) => {
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(position), gl.STATIC_DRAW);
@@ -59,85 +64,96 @@ const drawDot = (gl: WebGL2RenderingContext, program: WebGLProgram, position: [n
   gl.drawArrays(gl.POINTS, 0, 1);
 };
 
+const dotPosition: [number, number] = [0.0, 0.0];
+const dotColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red
+const moveSpeed = 0.01;
+
+// key mappings
+const Actions = {
+  MOVE_UP: 'move_up',
+  MOVE_DOWN: 'move_down',
+  MOVE_LEFT: 'move_left',
+  MOVE_RIGHT: 'move_right',
+} as const;
+
+type Action = (typeof Actions)[keyof typeof Actions];
+
+// Default key mappings
+const defaultKeyMappings: Record<string, Action> = {
+  w: Actions.MOVE_UP,
+  ArrowUp: Actions.MOVE_UP,
+  s: Actions.MOVE_DOWN,
+  ArrowDown: Actions.MOVE_DOWN,
+  a: Actions.MOVE_LEFT,
+  ArrowLeft: Actions.MOVE_LEFT,
+  d: Actions.MOVE_RIGHT,
+  ArrowRight: Actions.MOVE_RIGHT,
+};
+
+const keyMappings = { ...defaultKeyMappings };
+
+const keysPressed: Record<string, boolean> = {};
+
+const updatePosition = () => {
+  if (keysPressed[Actions.MOVE_UP]) dotPosition[1] += moveSpeed;
+  if (keysPressed[Actions.MOVE_DOWN]) dotPosition[1] -= moveSpeed;
+  if (keysPressed[Actions.MOVE_LEFT]) dotPosition[0] -= moveSpeed;
+  if (keysPressed[Actions.MOVE_RIGHT]) dotPosition[0] += moveSpeed;
+};
+
+window.addEventListener('keydown', ({ key }: KeyboardEvent) => {
+  const action = keyMappings[key];
+  if (action) keysPressed[action] = true;
+});
+
+window.addEventListener('keyup', ({ key }: KeyboardEvent) => {
+  const action = keyMappings[key];
+  if (action) keysPressed[action] = false;
+});
+
+let gl: WebGL2RenderingContext;
+let program: WebGLProgram;
+
+const drawScene = () => {
+  if (!gl) return;
+  gl.clearColor(1.0, 1.0, 1.0, 1.0); // Clear to white color
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  drawDot(gl, program, dotPosition, dotColor); // Drawing the dot
+};
+
+const display = () => {
+  updatePosition();
+  drawScene();
+  requestAnimationFrame(display);
+};
+
 const init = () => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-  const gl = canvas.getContext('webgl2');
+  const webGL2RenderingContext = canvas.getContext('webgl2');
 
-  if (!gl) {
+  if (!webGL2RenderingContext) {
     console.error('Unable to initialize WebGL');
     return;
   }
+
+  gl = webGL2RenderingContext;
 
   const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
   const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
 
   if (!vertexShader || !fragmentShader) return;
 
-  const program = createProgram(gl, vertexShader, fragmentShader);
-  if (!program) return;
+  const webGLProgram = createProgram(gl, vertexShader, fragmentShader);
+  if (!webGLProgram) return;
+  program = webGLProgram;
+
   gl.useProgram(program);
-
-  // key mappings
-  const Actions = {
-    MOVE_UP: 'move_up',
-    MOVE_DOWN: 'move_down',
-    MOVE_LEFT: 'move_left',
-    MOVE_RIGHT: 'move_right',
-  } as const;
-
-  type Action = (typeof Actions)[keyof typeof Actions];
-
-  // Default key mappings
-  const defaultKeyMappings: Record<string, Action> = {
-    w: Actions.MOVE_UP,
-    ArrowUp: Actions.MOVE_UP,
-    s: Actions.MOVE_DOWN,
-    ArrowDown: Actions.MOVE_DOWN,
-    a: Actions.MOVE_LEFT,
-    ArrowLeft: Actions.MOVE_LEFT,
-    d: Actions.MOVE_RIGHT,
-    ArrowRight: Actions.MOVE_RIGHT,
-  };
-
-  const keyMappings = { ...defaultKeyMappings };
-
-  // game code
-  const dotPosition: [number, number] = [0.0, 0.0];
-  const dotColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red
-  const moveSpeed = 0.01;
-  const keysPressed: Record<string, boolean> = {};
-
-  const updatePosition = () => {
-    if (keysPressed[Actions.MOVE_UP]) dotPosition[1] += moveSpeed;
-    if (keysPressed[Actions.MOVE_DOWN]) dotPosition[1] -= moveSpeed;
-    if (keysPressed[Actions.MOVE_LEFT]) dotPosition[0] -= moveSpeed;
-    if (keysPressed[Actions.MOVE_RIGHT]) dotPosition[0] += moveSpeed;
-  };
-
-  const drawScene = () => {
-    gl.clearColor(1.0, 1.0, 1.0, 1.0); // Clear to white color
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    drawDot(gl, program, dotPosition, dotColor); // Drawing the dot
-  };
-
-  const main = () => {
-    updatePosition();
-    drawScene();
-    requestAnimationFrame(main);
-  };
-
-  window.addEventListener('keydown', ({ key }: KeyboardEvent) => {
-    const action = keyMappings[key];
-    if (action) keysPressed[action] = true;
-  });
-
-  window.addEventListener('keyup', ({ key }: KeyboardEvent) => {
-    const action = keyMappings[key];
-    if (action) keysPressed[action] = false;
-  });
-
-  main();
 };
 
-init();
+const main = () => {
+  init();
+  display();
+};
+
+main();
