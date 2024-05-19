@@ -44,7 +44,7 @@ const createProgram = (
   return null;
 };
 
-const drawDot = (
+const drawPlayer2D = (
   gl: WebGL2RenderingContext,
   program: WebGLProgram,
   position: [number, number],
@@ -64,8 +64,8 @@ const drawDot = (
   gl.drawArrays(gl.POINTS, 0, 1);
 };
 
-const dotPosition: [number, number] = [0.0, 0.0];
-const dotColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red
+const playerPosition: [number, number] = [0.0, 0.0];
+const playerColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red
 const moveSpeed = 0.01;
 
 // key mappings
@@ -93,10 +93,10 @@ const keyMappings = { ...defaultKeyMappings };
 const keysPressed: Partial<Record<Action, boolean>> = {};
 
 const updatePosition = () => {
-  if (keysPressed[Action.MOVE_UP]) dotPosition[1] += moveSpeed;
-  if (keysPressed[Action.MOVE_DOWN]) dotPosition[1] -= moveSpeed;
-  if (keysPressed[Action.MOVE_LEFT]) dotPosition[0] -= moveSpeed;
-  if (keysPressed[Action.MOVE_RIGHT]) dotPosition[0] += moveSpeed;
+  if (keysPressed[Action.MOVE_UP]) playerPosition[1] += moveSpeed;
+  if (keysPressed[Action.MOVE_DOWN]) playerPosition[1] -= moveSpeed;
+  if (keysPressed[Action.MOVE_LEFT]) playerPosition[0] -= moveSpeed;
+  if (keysPressed[Action.MOVE_RIGHT]) playerPosition[0] += moveSpeed;
 };
 
 window.addEventListener('keydown', ({ key }: KeyboardEvent) => {
@@ -112,17 +112,12 @@ window.addEventListener('keyup', ({ key }: KeyboardEvent) => {
 let gl: WebGL2RenderingContext;
 let program: WebGLProgram;
 
-const drawScene = () => {
+const display = () => {
   if (!gl) return;
   gl.clearColor(1.0, 1.0, 1.0, 1.0); // Clear to white color
   gl.clear(gl.COLOR_BUFFER_BIT);
-
-  drawDot(gl, program, dotPosition, dotColor); // Drawing the dot
-};
-
-const display = () => {
   updatePosition();
-  drawScene();
+  drawPlayer2D(gl, program, playerPosition, playerColor);
   requestAnimationFrame(display);
 };
 
