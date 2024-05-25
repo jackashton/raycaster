@@ -47,6 +47,8 @@ const createProgram = (
 
 const mapX = 8;
 const mapY = 8;
+const mapS = 64;
+const gap = 0.1 / mapS;
 const map = [
   1, 1, 1, 1, 1, 1, 1, 1,
   1, 0, 1, 0, 0, 0, 0, 1,
@@ -58,7 +60,7 @@ const map = [
   1, 1, 1, 1, 1, 1, 1, 1,
 ];
 
-const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram) => {
+const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: number, height: number) => {
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
@@ -72,16 +74,15 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram) => {
   for (let y = 0; y < mapY; y++) {
     for (let x = 0; x < mapX; x++) {
       if (map[y * mapX + x]) {
-        const xo = x * (2 / mapX) - 1; // Map coordinates to WebGL clip space
-        const yo = 1 - y * (2 / mapY); // Invert y-axis for WebGL clip space
-        const size = 2 / mapX; // Map size to WebGL clip space
+        // Map x & y to range [-1, 1]
+        const xo = ((x * mapS) / width) * 2 - 1 + gap;
+        const yo = 1 - ((y * mapS) / height) * 2 - gap;
 
         const vertices = [
           xo, yo,
-          xo, yo - size,
-          xo + size,
-          yo - size,
-          xo + size, yo
+          xo, yo - (mapS / height) * 2 + gap,
+          xo + (mapS / width) * 2 - gap, yo - (64 / height) * 2 + gap,
+          xo + (mapS / width) * 2 - gap, yo,
         ];
 
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
@@ -159,19 +160,20 @@ window.addEventListener('keyup', ({ key }: KeyboardEvent) => {
 
 let gl: WebGL2RenderingContext;
 let program: WebGLProgram;
+let canvas: HTMLCanvasElement;
 
 const display = () => {
   if (!gl) return;
   gl.clearColor(1.0, 1.0, 1.0, 1.0); // Clear to white color
   gl.clear(gl.COLOR_BUFFER_BIT);
   updatePosition();
-  drawMap2D(gl, program);
+  drawMap2D(gl, program, canvas.width, canvas.height);
   drawPlayer2D(gl, program, playerPosition, playerColor);
   requestAnimationFrame(display);
 };
 
 const init = () => {
-  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+  canvas = document.getElementById('canvas') as HTMLCanvasElement;
   const webGL2RenderingContext = canvas.getContext('webgl2');
 
   if (!webGL2RenderingContext) {
