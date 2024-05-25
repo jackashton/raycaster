@@ -69,26 +69,27 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
   gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
   const colorLocation = gl.getUniformLocation(program, 'u_color');
-  gl.uniform4fv(colorLocation, [0.0, 0.0, 0.0, 1]);
 
   for (let y = 0; y < mapY; y++) {
     for (let x = 0; x < mapX; x++) {
+      let color = [0.0, 0.0, 0.0, 1.0];
       if (map[y * mapX + x]) {
-        // Map x & y to range [-1, 1]
-        const xo = ((x * mapS) / width) * 2 - 1 + gap;
-        const yo = 1 - ((y * mapS) / height) * 2 - gap;
-
-        const vertices = [
-          xo, yo,
-          xo, yo - (mapS / height) * 2 + gap,
-          xo + (mapS / width) * 2 - gap, yo - (64 / height) * 2 + gap,
-          xo + (mapS / width) * 2 - gap, yo,
-        ];
-
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-        gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+        color = [1.0, 1.0, 1.0, 1.0];
       }
+      // Map x & y to range [-1, 1]
+      const xo = ((x * mapS) / width) * 2 - 1 + gap;
+      const yo = 1 - ((y * mapS) / height) * 2 - gap;
+
+      const vertices = [
+        xo, yo,
+        xo, yo - (mapS / height) * 2 + gap,
+        xo + (mapS / width) * 2 - gap, yo - (64 / height) * 2 + gap,
+        xo + (mapS / width) * 2 - gap, yo,
+      ];
+
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+      gl.uniform4fv(colorLocation, color);
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
     }
   }
 };
@@ -164,7 +165,7 @@ let canvas: HTMLCanvasElement;
 
 const display = () => {
   if (!gl) return;
-  gl.clearColor(1.0, 1.0, 1.0, 1.0); // Clear to white color
+  gl.clearColor(0.3, 0.3, 0.3, 1.0); // background color
   gl.clear(gl.COLOR_BUFFER_BIT);
   updatePosition();
   drawMap2D(gl, program, canvas.width, canvas.height);
