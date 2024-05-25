@@ -2,7 +2,7 @@ const vertexShaderSource = `
   attribute vec2 a_position;
   void main() {
     gl_Position = vec4(a_position, 0.0, 1.0);
-    gl_PointSize = 10.0;
+    gl_PointSize = 8.0;
   }
 `;
 
@@ -42,6 +42,53 @@ const createProgram = (
   console.error(gl.getProgramInfoLog(program));
   gl.deleteProgram(program);
   return null;
+};
+
+const mapX = 8;
+const mapY = 8;
+const map = [
+  1, 1, 1, 1, 1, 1, 1, 1,
+  1, 0, 1, 0, 0, 0, 0, 1,
+  1, 0, 1, 0, 0, 0, 0, 1,
+  1, 0, 1, 0, 0, 0, 0, 1,
+  1, 0, 0, 0, 0, 0, 0, 1,
+  1, 0, 0, 0, 0, 1, 0, 1,
+  1, 0, 0, 0, 0, 0, 0, 1,
+  1, 1, 1, 1, 1, 1, 1, 1,
+];
+
+const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram) => {
+  const positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+  const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+  gl.enableVertexAttribArray(positionAttributeLocation);
+  gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+  const colorLocation = gl.getUniformLocation(program, 'u_color');
+  gl.uniform4fv(colorLocation, [0.0, 0.0, 0.0, 1]);
+
+  for (let y = 0; y < mapY; y++) {
+    for (let x = 0; x < mapX; x++) {
+      if (map[y * mapX + x]) {
+        const xo = x * (2 / mapX) - 1; // Map coordinates to WebGL clip space
+        const yo = 1 - y * (2 / mapY); // Invert y-axis for WebGL clip space
+        const size = 2 / mapX; // Map size to WebGL clip space
+
+        const vertices = [
+          xo, yo,
+          xo, yo - size,
+          xo + size,
+          yo - size,
+          xo + size, yo
+        ];
+
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+        gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+      }
+    }
+  }
 };
 
 const drawPlayer2D = (
@@ -117,6 +164,7 @@ const display = () => {
   gl.clearColor(1.0, 1.0, 1.0, 1.0); // Clear to white color
   gl.clear(gl.COLOR_BUFFER_BIT);
   updatePosition();
+  drawMap2D(gl, program);
   drawPlayer2D(gl, program, playerPosition, playerColor);
   requestAnimationFrame(display);
 };
