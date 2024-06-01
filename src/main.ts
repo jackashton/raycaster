@@ -1,4 +1,4 @@
-import { normalizeAngle } from "./utils";
+import { normalizeAngle } from './utils';
 
 const vertexShaderSource = `
   attribute vec2 a_position;
@@ -100,7 +100,6 @@ const drawPlayer2D = (
   gl: WebGL2RenderingContext,
   program: WebGLProgram,
   position: [number, number],
-  angle: number,
   color: [number, number, number, number],
 ) => {
   const positionBuffer = gl.createBuffer();
@@ -136,18 +135,24 @@ enum Action {
   MOVE_DOWN = 'MOVE_DOWN',
   MOVE_LEFT = 'MOVE_LEFT',
   MOVE_RIGHT = 'MOVE_RIGHT',
+  STRAFE = 'STRAFE',
 }
 
 // Default key mappings
 const defaultKeyMappings: Record<KeyboardEvent['key'], Action> = {
+  W: Action.MOVE_UP,
   w: Action.MOVE_UP,
   ArrowUp: Action.MOVE_UP,
+  S: Action.MOVE_DOWN,
   s: Action.MOVE_DOWN,
   ArrowDown: Action.MOVE_DOWN,
+  A: Action.MOVE_LEFT,
   a: Action.MOVE_LEFT,
   ArrowLeft: Action.MOVE_LEFT,
+  D: Action.MOVE_RIGHT,
   d: Action.MOVE_RIGHT,
   ArrowRight: Action.MOVE_RIGHT,
+  shift: Action.STRAFE,
 };
 
 const keyMappings = { ...defaultKeyMappings };
@@ -157,9 +162,14 @@ const keysPressed: Partial<Record<Action, boolean>> = {};
 const updatePosition = () => {
   if (keysPressed[Action.MOVE_LEFT] || keysPressed[Action.MOVE_RIGHT]) {
     const moveDirection = keysPressed[Action.MOVE_LEFT] ? -1 : 1;
-    playerAngle = normalizeAngle(playerAngle + moveSpeed * moveDirection * 5);
-    playerDeltaX = Math.cos(playerAngle);
-    playerDeltaY = -Math.sin(playerAngle);
+    if (keysPressed[Action.STRAFE]) {
+      playerPosition[0] += Math.cos(playerAngle + Math.PI / 2) * moveDirection * moveSpeed;
+      playerPosition[1] -= Math.sin(playerAngle + Math.PI / 2) * moveDirection * moveSpeed;
+    } else {
+      playerAngle = normalizeAngle(playerAngle + moveDirection * moveSpeed * 5);
+      playerDeltaX = Math.cos(playerAngle);
+      playerDeltaY = -Math.sin(playerAngle);
+    }
   }
   if (keysPressed[Action.MOVE_UP]) {
     playerPosition[0] += playerDeltaX * moveSpeed;
@@ -171,14 +181,16 @@ const updatePosition = () => {
   }
 };
 
-window.addEventListener('keydown', ({ key }: KeyboardEvent) => {
+window.addEventListener('keydown', ({ key, shiftKey }: KeyboardEvent) => {
   const action = keyMappings[key];
   if (action) keysPressed[action] = true;
+  keysPressed[Action.STRAFE] = shiftKey;
 });
 
-window.addEventListener('keyup', ({ key }: KeyboardEvent) => {
+window.addEventListener('keyup', ({ key, shiftKey }: KeyboardEvent) => {
   const action = keyMappings[key];
   if (action) keysPressed[action] = false;
+  keysPressed[Action.STRAFE] = shiftKey;
 });
 
 let gl: WebGL2RenderingContext;
@@ -191,8 +203,8 @@ const display = () => {
   gl.clear(gl.COLOR_BUFFER_BIT);
   updatePosition();
   drawMap2D(gl, program, canvas.width, canvas.height);
-  drawPlayer2D(gl, program, playerPosition, playerAngle, playerColor);
-  console.log(playerPosition, playerAngle);
+  drawPlayer2D(gl, program, playerPosition, playerColor);
+  console.log(playerAngle);
   requestAnimationFrame(display);
 };
 

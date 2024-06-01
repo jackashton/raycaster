@@ -4,9 +4,14 @@ export const normalizeAngle = (theta: number) => {
   return theta;
 };
 
-export const rotate = (position: [number, number], angle: number) => {
-  let [x, y] = position;
-  x = x * Math.cos(angle);
-  y = y * -Math.sin(angle);
-  return [x, y];
+export const normalize = (vector: [number, number]): [number, number] => {
+  const [x, y] = vector;
+  const magnitude = Math.sqrt(x * x + y * y);
+
+  // Check for zero magnitude to avoid division by zero
+  if (magnitude === 0) {
+    throw new Error('Cannot normalize a zero vector');
+  }
+
+  return [x / magnitude, y / magnitude];
 };
