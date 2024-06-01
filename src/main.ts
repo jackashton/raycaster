@@ -1,3 +1,5 @@
+import { normalizeAngle } from "./utils";
+
 const vertexShaderSource = `
   attribute vec2 a_position;
   void main() {
@@ -98,6 +100,7 @@ const drawPlayer2D = (
   gl: WebGL2RenderingContext,
   program: WebGLProgram,
   position: [number, number],
+  angle: number,
   color: [number, number, number, number],
 ) => {
   const positionBuffer = gl.createBuffer();
@@ -112,10 +115,19 @@ const drawPlayer2D = (
   gl.uniform4fv(colorLocation, color);
 
   gl.drawArrays(gl.POINTS, 0, 1);
+
+  // draw player direction line
+  const x1 = position[0] + playerDeltaX * 0.1;
+  const y1 = position[1] + playerDeltaY * 0.1;
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([...position, x1, y1]), gl.STATIC_DRAW);
+  gl.drawArrays(gl.LINES, 0, 2);
 };
 
 const playerPosition: [number, number] = [0.0, 0.0];
 const playerColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red
+let playerAngle = Math.PI / 2;
+let playerDeltaX = Math.cos(playerAngle);
+let playerDeltaY = -Math.sin(playerAngle);
 const moveSpeed = 0.01;
 
 // key mappings
@@ -143,10 +155,20 @@ const keyMappings = { ...defaultKeyMappings };
 const keysPressed: Partial<Record<Action, boolean>> = {};
 
 const updatePosition = () => {
-  if (keysPressed[Action.MOVE_UP]) playerPosition[1] += moveSpeed;
-  if (keysPressed[Action.MOVE_DOWN]) playerPosition[1] -= moveSpeed;
-  if (keysPressed[Action.MOVE_LEFT]) playerPosition[0] -= moveSpeed;
-  if (keysPressed[Action.MOVE_RIGHT]) playerPosition[0] += moveSpeed;
+  if (keysPressed[Action.MOVE_LEFT] || keysPressed[Action.MOVE_RIGHT]) {
+    const moveDirection = keysPressed[Action.MOVE_LEFT] ? -1 : 1;
+    playerAngle = normalizeAngle(playerAngle + moveSpeed * moveDirection * 5);
+    playerDeltaX = Math.cos(playerAngle);
+    playerDeltaY = -Math.sin(playerAngle);
+  }
+  if (keysPressed[Action.MOVE_UP]) {
+    playerPosition[0] += playerDeltaX * moveSpeed;
+    playerPosition[1] += playerDeltaY * moveSpeed;
+  }
+  if (keysPressed[Action.MOVE_DOWN]) {
+    playerPosition[0] -= playerDeltaX * moveSpeed;
+    playerPosition[1] -= playerDeltaY * moveSpeed;
+  }
 };
 
 window.addEventListener('keydown', ({ key }: KeyboardEvent) => {
@@ -169,7 +191,8 @@ const display = () => {
   gl.clear(gl.COLOR_BUFFER_BIT);
   updatePosition();
   drawMap2D(gl, program, canvas.width, canvas.height);
-  drawPlayer2D(gl, program, playerPosition, playerColor);
+  drawPlayer2D(gl, program, playerPosition, playerAngle, playerColor);
+  console.log(playerPosition, playerAngle);
   requestAnimationFrame(display);
 };
 
