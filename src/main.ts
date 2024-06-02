@@ -1,5 +1,6 @@
-import { Vector2D } from './vector';
-import { normalizeAngle } from './utils';
+import normalizeAngle from './utils/normalizeAngle';
+import { Vector2D } from './utils/vector';
+import { Player } from './player';
 
 const vertexShaderSource = `
   attribute vec2 a_position;
@@ -53,14 +54,8 @@ const mapY = 8;
 const mapS = 64;
 const gap = 0.1 / mapS;
 const map = [
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 0, 1, 0, 0, 0, 0, 1,
-  1, 0, 1, 0, 0, 0, 0, 1,
-  1, 0, 1, 0, 0, 0, 0, 1,
-  1, 0, 0, 0, 0, 0, 0, 1,
-  1, 0, 0, 0, 0, 1, 0, 1,
-  1, 0, 0, 0, 0, 0, 0, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+  1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 ];
 
 const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: number, height: number) => {
@@ -84,10 +79,14 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
       const yo = 1 - ((y * mapS) / height) * 2 - gap;
 
       const vertices = [
-        xo, yo,
-        xo, yo - (mapS / height) * 2 + gap,
-        xo + (mapS / width) * 2 - gap, yo - (64 / height) * 2 + gap,
-        xo + (mapS / width) * 2 - gap, yo,
+        xo,
+        yo,
+        xo,
+        yo - (mapS / height) * 2 + gap,
+        xo + (mapS / width) * 2 - gap,
+        yo - (64 / height) * 2 + gap,
+        xo + (mapS / width) * 2 - gap,
+        yo,
       ];
 
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
@@ -97,12 +96,7 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
   }
 };
 
-const drawPlayer2D = (
-  gl: WebGL2RenderingContext,
-  program: WebGLProgram,
-  position: Vector2D,
-  color: [number, number, number, number],
-) => {
+const drawPlayer2D = (gl: WebGL2RenderingContext, program: WebGLProgram, { position, delta, color }: Player) => {
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(position.toArray()), gl.STATIC_DRAW);
@@ -119,18 +113,13 @@ const drawPlayer2D = (
   // draw player direction line
   gl.bufferData(
     gl.ARRAY_BUFFER,
-    new Float32Array([...position.toArray(), ...position.add(playerDelta.multiply(0.1)).toArray()]),
+    new Float32Array([...position.toArray(), ...position.add(delta.multiply(0.1)).toArray()]),
     gl.STATIC_DRAW,
   );
   gl.drawArrays(gl.LINES, 0, 2);
 };
 
-let playerPosition = new Vector2D(0.0, 0.0);
-const playerColor: [number, number, number, number] = [1.0, 0.0, 0.0, 1.0]; // Red
-let playerAngle = Math.PI / 2;
-let playerDelta = new Vector2D(Math.cos(playerAngle), -Math.sin(playerAngle));
-const moveSpeed = 0.01;
-const turnSpeed = moveSpeed * 10;
+const player = new Player(new Vector2D(0.0, 0.0), [1.0, 0.0, 0.0, 1.0]);
 
 // key mappings
 enum Action {
@@ -162,25 +151,25 @@ const keyMappings = { ...defaultKeyMappings };
 
 const keysPressed: Partial<Record<Action, boolean>> = {};
 
-const updatePosition = () => {
+const updatePosition = (player: Player) => {
   const moveDirection = keysPressed[Action.MOVE_LEFT] ? -1 : keysPressed[Action.MOVE_RIGHT] ? 1 : 0;
 
   if (moveDirection) {
     if (keysPressed[Action.STRAFE]) {
-      const strafeAngle = playerAngle + (Math.PI / 2) * moveDirection;
-      playerPosition = playerPosition.add(
-        new Vector2D(Math.cos(strafeAngle), -Math.sin(strafeAngle)).multiply(moveSpeed),
+      const strafeAngle = player.angle + (Math.PI / 2) * moveDirection;
+      player.position = player.position.add(
+        new Vector2D(Math.cos(strafeAngle), -Math.sin(strafeAngle)).multiply(player.moveSpeed),
       );
     } else {
-      playerAngle = normalizeAngle(playerAngle + moveDirection * turnSpeed);
-      playerDelta = new Vector2D(Math.cos(playerAngle), -Math.sin(playerAngle));
+      player.angle = normalizeAngle(player.angle + moveDirection * player.turnSpeed);
+      player.updateDelta();
     }
   }
   if (keysPressed[Action.MOVE_UP]) {
-    playerPosition = playerPosition.add(playerDelta.multiply(moveSpeed));
+    player.position = player.position.add(player.delta.multiply(player.moveSpeed));
   }
   if (keysPressed[Action.MOVE_DOWN]) {
-    playerPosition = playerPosition.subtract(playerDelta.multiply(moveSpeed));
+    player.position = player.position.subtract(player.delta.multiply(player.moveSpeed));
   }
 };
 
@@ -202,10 +191,9 @@ const display = () => {
   if (!gl) return;
   gl.clearColor(0.3, 0.3, 0.3, 1.0); // background color
   gl.clear(gl.COLOR_BUFFER_BIT);
-  updatePosition();
+  updatePosition(player);
   drawMap2D(gl, program, canvas.width, canvas.height);
-  drawPlayer2D(gl, program, playerPosition, playerColor);
-  console.log(playerAngle);
+  drawPlayer2D(gl, program, player);
   requestAnimationFrame(display);
 };
 
