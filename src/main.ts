@@ -1,6 +1,7 @@
 import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
 import { Player } from './player';
+import { canvasToClipSpace } from './utils/toClipSpace';
 
 const vertexShaderSource = `
   attribute vec2 a_position;
@@ -52,7 +53,7 @@ const createProgram = (
 const mapX = 8;
 const mapY = 8;
 const mapS = 64;
-const gap = 0.1 / mapS;
+const gap = 1;
 const map = [
   1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
   1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -74,19 +75,15 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
       if (map[y * mapX + x]) {
         color = [1.0, 1.0, 1.0, 1.0];
       }
-      // Map x & y to range [-1, 1]
-      const xo = ((x * mapS) / width) * 2 - 1 + gap;
-      const yo = 1 - ((y * mapS) / height) * 2 - gap;
+
+      const xo = x * mapS;
+      const yo = y * mapS;
 
       const vertices = [
-        xo,
-        yo,
-        xo,
-        yo - (mapS / height) * 2 + gap,
-        xo + (mapS / width) * 2 - gap,
-        yo - (64 / height) * 2 + gap,
-        xo + (mapS / width) * 2 - gap,
-        yo,
+        ...canvasToClipSpace(width, height, xo + gap, yo + gap),
+        ...canvasToClipSpace(width, height, xo + gap, yo + mapS - gap),
+        ...canvasToClipSpace(width, height, xo + mapS - gap, yo + mapS - gap),
+        ...canvasToClipSpace(width, height, xo + mapS - gap, yo + gap),
       ];
 
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
@@ -96,10 +93,16 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
   }
 };
 
-const drawPlayer2D = (gl: WebGL2RenderingContext, program: WebGLProgram, { position, delta, color }: Player) => {
+const drawPlayer2D = (
+  gl: WebGL2RenderingContext,
+  program: WebGLProgram,
+  { position, delta, color }: Player,
+  width: number,
+  height: number,
+) => {
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(position.toArray()), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(canvasToClipSpace(width, height, player.position.x, player.position.y)), gl.STATIC_DRAW);
 
   const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
   gl.enableVertexAttribArray(positionAttributeLocation);
@@ -111,15 +114,91 @@ const drawPlayer2D = (gl: WebGL2RenderingContext, program: WebGLProgram, { posit
   gl.drawArrays(gl.POINTS, 0, 1);
 
   // draw player direction line
+  const directionRayEnd = position.add(delta.multiply(10));
   gl.bufferData(
     gl.ARRAY_BUFFER,
-    new Float32Array([...position.toArray(), ...position.add(delta.multiply(0.1)).toArray()]),
+    new Float32Array([
+      ...canvasToClipSpace(width, height, position.x, position.y),
+      ...canvasToClipSpace(width, height, directionRayEnd.x, directionRayEnd.y),
+    ]),
     gl.STATIC_DRAW,
   );
   gl.drawArrays(gl.LINES, 0, 2);
 };
 
-const player = new Player(new Vector2D(0.0, 0.0), [1.0, 0.0, 0.0, 1.0]);
+const drawRays2D = (
+  gl: WebGL2RenderingContext,
+  program: WebGLProgram,
+  player: Player,
+  width: number,
+  height: number,
+) => {
+  const positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+  const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+  gl.enableVertexAttribArray(positionAttributeLocation);
+  gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+  const colorLocation = gl.getUniformLocation(program, 'u_color');
+  gl.uniform4fv(colorLocation, [0.0, 1.0, 0.0, 1.0]);
+
+  const rayAngle = player.angle;
+  let rayPosition = new Vector2D(0, 0);
+  const offset = new Vector2D(0, 0);
+  const maxDof = 8;
+  for (let r = 0; r < 1; r++) {
+    let dof = 0;
+    const aTan = -1 / Math.tan(rayAngle);
+    // horizontal lines
+    if (rayAngle > Math.PI) {
+      // looking up
+      rayPosition.y = Math.ceil(player.position.y / mapS) * mapS;
+      rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
+      offset.y = -mapS;
+      offset.x = -offset.y * aTan;
+    }
+    if (rayAngle < Math.PI) {
+      // looking down
+      rayPosition.y = Math.floor(player.position.y / mapS) * mapS;
+      rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
+      offset.y = mapS;
+      offset.x = -offset.y * aTan;
+    }
+    if (rayAngle === 0 || rayAngle === Math.PI) {
+      // looking straight left or right
+      rayPosition.x = player.position.x;
+      rayPosition.y = player.position.y;
+      dof = maxDof;
+    }
+
+    while (dof < maxDof) {
+      const mx = rayPosition.x / mapS;
+      const my = rayPosition.y / mapS;
+      const mp = my * mapX + mx;
+      // hit wall
+      if (mp < mapX * mapY && map[mp]) {
+        dof = maxDof;
+      } else {
+        // go to next line
+        rayPosition = rayPosition.add(offset);
+        dof++;
+      }
+    }
+
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([
+        ...canvasToClipSpace(width, height, player.position.x, player.position.y),
+        ...canvasToClipSpace(width, height, rayPosition.x, rayPosition.y),
+      ]),
+      gl.STATIC_DRAW,
+    );
+    gl.drawArrays(gl.LINES, 0, 2);
+  }
+};
+
+const player = new Player(new Vector2D(400, 150), [1.0, 0.0, 0.0, 1.0]);
 
 // key mappings
 enum Action {
@@ -193,7 +272,8 @@ const display = () => {
   gl.clear(gl.COLOR_BUFFER_BIT);
   updatePosition(player);
   drawMap2D(gl, program, canvas.width, canvas.height);
-  drawPlayer2D(gl, program, player);
+  drawPlayer2D(gl, program, player, canvas.width, canvas.height);
+  drawRays2D(gl, program, player, canvas.width, canvas.height);
   requestAnimationFrame(display);
 };
 

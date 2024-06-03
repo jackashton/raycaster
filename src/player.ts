@@ -13,8 +13,8 @@ export class Player {
     this.color = color;
     this.angle = Math.PI / 2;
     this.delta = new Vector2D(Math.cos(this.angle), -Math.sin(this.angle));
-    this.moveSpeed = 0.01;
-    this.turnSpeed = this.moveSpeed * 10;
+    this.moveSpeed = 5;
+    this.turnSpeed = Math.PI / 64;
   }
 
   updateDelta() {
