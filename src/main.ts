@@ -114,16 +114,16 @@ const drawPlayer2D = (
   gl.drawArrays(gl.POINTS, 0, 1);
 
   // draw player direction line
-  const directionRayEnd = position.add(delta.multiply(10));
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([
-      ...canvasToClipSpace(width, height, position.x, position.y),
-      ...canvasToClipSpace(width, height, directionRayEnd.x, directionRayEnd.y),
-    ]),
-    gl.STATIC_DRAW,
-  );
-  gl.drawArrays(gl.LINES, 0, 2);
+  // const directionRayEnd = position.add(delta.multiply(10));
+  // gl.bufferData(
+  //   gl.ARRAY_BUFFER,
+  //   new Float32Array([
+  //     ...canvasToClipSpace(width, height, position.x, position.y),
+  //     ...canvasToClipSpace(width, height, directionRayEnd.x, directionRayEnd.y),
+  //   ]),
+  //   gl.STATIC_DRAW,
+  // );
+  // gl.drawArrays(gl.LINES, 0, 2);
 };
 
 const drawRays2D = (
@@ -149,18 +149,18 @@ const drawRays2D = (
   const maxDof = 8;
   for (let r = 0; r < 1; r++) {
     let dof = 0;
-    const aTan = -1 / Math.tan(rayAngle);
+    const aTan = 1 / Math.tan(rayAngle);
     // horizontal lines
-    if (rayAngle > Math.PI) {
+    if (rayAngle < Math.PI) {
       // looking up
-      rayPosition.y = Math.ceil(player.position.y / mapS) * mapS;
+      rayPosition.y = Math.floor(player.position.y / mapS) * mapS - 0.0001;
       rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
       offset.y = -mapS;
       offset.x = -offset.y * aTan;
     }
-    if (rayAngle < Math.PI) {
+    if (rayAngle > Math.PI) {
       // looking down
-      rayPosition.y = Math.floor(player.position.y / mapS) * mapS;
+      rayPosition.y = Math.ceil(player.position.y / mapS) * mapS + mapS;
       rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
       offset.y = mapS;
       offset.x = -offset.y * aTan;
@@ -173,11 +173,11 @@ const drawRays2D = (
     }
 
     while (dof < maxDof) {
-      const mx = rayPosition.x / mapS;
-      const my = rayPosition.y / mapS;
+      const mx = Math.floor(rayPosition.x / mapS);
+      const my = Math.floor(rayPosition.y / mapS);
       const mp = my * mapX + mx;
-      // hit wall
-      if (mp < mapX * mapY && map[mp]) {
+      // hit
+      if (mp < mapX * mapY && map[mp] === 1) {
         dof = maxDof;
       } else {
         // go to next line
@@ -231,7 +231,7 @@ const keyMappings = { ...defaultKeyMappings };
 const keysPressed: Partial<Record<Action, boolean>> = {};
 
 const updatePosition = (player: Player) => {
-  const moveDirection = keysPressed[Action.MOVE_LEFT] ? -1 : keysPressed[Action.MOVE_RIGHT] ? 1 : 0;
+  const moveDirection = keysPressed[Action.MOVE_RIGHT] ? -1 : keysPressed[Action.MOVE_LEFT] ? 1 : 0;
 
   if (moveDirection) {
     if (keysPressed[Action.STRAFE]) {
