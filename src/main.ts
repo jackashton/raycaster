@@ -102,7 +102,11 @@ const drawPlayer2D = (
 ) => {
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(canvasToClipSpace(width, height, player.position.x, player.position.y)), gl.STATIC_DRAW);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(canvasToClipSpace(width, height, player.position.x, player.position.y)),
+    gl.STATIC_DRAW,
+  );
 
   const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
   gl.enableVertexAttribArray(positionAttributeLocation);
@@ -114,16 +118,7 @@ const drawPlayer2D = (
   gl.drawArrays(gl.POINTS, 0, 1);
 
   // draw player direction line
-  // const directionRayEnd = position.add(delta.multiply(10));
-  // gl.bufferData(
-  //   gl.ARRAY_BUFFER,
-  //   new Float32Array([
-  //     ...canvasToClipSpace(width, height, position.x, position.y),
-  //     ...canvasToClipSpace(width, height, directionRayEnd.x, directionRayEnd.y),
-  //   ]),
-  //   gl.STATIC_DRAW,
-  // );
-  // gl.drawArrays(gl.LINES, 0, 2);
+  // d
 };
 
 const drawRays2D = (
@@ -140,33 +135,80 @@ const drawRays2D = (
   gl.enableVertexAttribArray(positionAttributeLocation);
   gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
-  const colorLocation = gl.getUniformLocation(program, 'u_color');
-  gl.uniform4fv(colorLocation, [0.0, 1.0, 0.0, 1.0]);
-
   const rayAngle = player.angle;
   let rayPosition = new Vector2D(0, 0);
   const offset = new Vector2D(0, 0);
   const maxDof = 8;
   for (let r = 0; r < 1; r++) {
     let dof = 0;
-    const aTan = 1 / Math.tan(rayAngle);
-    // horizontal lines
-    if (rayAngle < Math.PI) {
-      // looking up
-      rayPosition.y = Math.floor(player.position.y / mapS) * mapS - 0.0001;
-      rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
-      offset.y = -mapS;
-      offset.x = -offset.y * aTan;
+    // const aTan = 1 / Math.tan(rayAngle);
+    // // horizontal lines
+    // if (rayAngle < Math.PI) {
+    //   // looking up
+    //   rayPosition.y = Math.floor(player.position.y / mapS) * mapS - 0.0001;
+    //   rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
+    //   offset.y = -mapS;
+    //   offset.x = -offset.y * aTan;
+    // }
+    // if (rayAngle > Math.PI) {
+    //   // looking down
+    //   rayPosition.y = Math.ceil(player.position.y / mapS) * mapS + mapS;
+    //   rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
+    //   offset.y = mapS;
+    //   offset.x = -offset.y * aTan;
+    // }
+    // if (rayAngle === 0 || rayAngle === Math.PI) {
+    //   // looking straight left or right
+    //   rayPosition.x = player.position.x;
+    //   rayPosition.y = player.position.y;
+    //   dof = maxDof;
+    // }
+    //
+    // while (dof < maxDof) {
+    //   const mx = Math.floor(rayPosition.x / mapS);
+    //   const my = Math.floor(rayPosition.y / mapS);
+    //   const mp = my * mapX + mx;
+    //   // hit
+    //   if (mp < mapX * mapY && map[mp] === 1) {
+    //     dof = maxDof;
+    //   } else {
+    //     // go to next line
+    //     rayPosition = rayPosition.add(offset);
+    //     dof++;
+    //   }
+    // }
+    //
+    // const colorLocation = gl.getUniformLocation(program, 'u_color');
+    // gl.uniform4fv(colorLocation, [0.0, 1.0, 0.0, 1.0]);
+    //
+    // gl.bufferData(
+    //   gl.ARRAY_BUFFER,
+    //   new Float32Array([
+    //     ...canvasToClipSpace(width, height, player.position.x, player.position.y),
+    //     ...canvasToClipSpace(width, height, rayPosition.x, rayPosition.y),
+    //   ]),
+    //   gl.STATIC_DRAW,
+    // );
+    // gl.drawArrays(gl.LINES, 0, 2);
+
+    const tan = Math.tan(rayAngle);
+    // vertical lines
+    if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) {
+      // looking left
+      rayPosition.x = Math.floor(player.position.x / mapS) * mapS - 0.0001;
+      rayPosition.y = (player.position.x - rayPosition.x) * tan + player.position.y;
+      offset.x = -mapS;
+      offset.y = -offset.x * tan;
     }
-    if (rayAngle > Math.PI) {
-      // looking down
-      rayPosition.y = Math.ceil(player.position.y / mapS) * mapS + mapS;
-      rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
-      offset.y = mapS;
-      offset.x = -offset.y * aTan;
+    if ((3 * Math.PI) / 2 < rayAngle || rayAngle < Math.PI / 2) {
+      // looking right
+      rayPosition.x = Math.ceil(player.position.x / mapS) * mapS + mapS;
+      rayPosition.y = (player.position.x - rayPosition.x) * tan + player.position.y;
+      offset.x = mapS;
+      offset.y = -offset.x * tan;
     }
-    if (rayAngle === 0 || rayAngle === Math.PI) {
-      // looking straight left or right
+    if (rayAngle === Math.PI / 2 || rayAngle === (3 * Math.PI) / 2) {
+      // looking straight up or down
       rayPosition.x = player.position.x;
       rayPosition.y = player.position.y;
       dof = maxDof;
@@ -185,6 +227,9 @@ const drawRays2D = (
         dof++;
       }
     }
+
+    const colorLocation = gl.getUniformLocation(program, 'u_color');
+    gl.uniform4fv(colorLocation, [1.0, 0.0, 0.0, 1.0]);
 
     gl.bufferData(
       gl.ARRAY_BUFFER,
