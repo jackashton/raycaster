@@ -96,7 +96,7 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
 const drawPlayer2D = (
   gl: WebGL2RenderingContext,
   program: WebGLProgram,
-  { position, delta, color }: Player,
+  { color }: Player,
   width: number,
   height: number,
 ) => {
@@ -116,9 +116,6 @@ const drawPlayer2D = (
   gl.uniform4fv(colorLocation, color);
 
   gl.drawArrays(gl.POINTS, 0, 1);
-
-  // draw player direction line
-  // d
 };
 
 const drawRays2D = (
@@ -135,64 +132,65 @@ const drawRays2D = (
   gl.enableVertexAttribArray(positionAttributeLocation);
   gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
+  const colorLocation = gl.getUniformLocation(program, 'u_color');
+
   const rayAngle = player.angle;
-  let rayPosition = new Vector2D(0, 0);
   const offset = new Vector2D(0, 0);
   const maxDof = 8;
+
+  let rayPosition = new Vector2D(0, 0);
   for (let r = 0; r < 1; r++) {
     let dof = 0;
-    // const aTan = 1 / Math.tan(rayAngle);
-    // // horizontal lines
-    // if (rayAngle < Math.PI) {
-    //   // looking up
-    //   rayPosition.y = Math.floor(player.position.y / mapS) * mapS - 0.0001;
-    //   rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
-    //   offset.y = -mapS;
-    //   offset.x = -offset.y * aTan;
-    // }
-    // if (rayAngle > Math.PI) {
-    //   // looking down
-    //   rayPosition.y = Math.ceil(player.position.y / mapS) * mapS + mapS;
-    //   rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
-    //   offset.y = mapS;
-    //   offset.x = -offset.y * aTan;
-    // }
-    // if (rayAngle === 0 || rayAngle === Math.PI) {
-    //   // looking straight left or right
-    //   rayPosition.x = player.position.x;
-    //   rayPosition.y = player.position.y;
-    //   dof = maxDof;
-    // }
-    //
-    // while (dof < maxDof) {
-    //   const mx = Math.floor(rayPosition.x / mapS);
-    //   const my = Math.floor(rayPosition.y / mapS);
-    //   const mp = my * mapX + mx;
-    //   // hit
-    //   if (mp < mapX * mapY && map[mp] === 1) {
-    //     dof = maxDof;
-    //   } else {
-    //     // go to next line
-    //     rayPosition = rayPosition.add(offset);
-    //     dof++;
-    //   }
-    // }
-    //
-    // const colorLocation = gl.getUniformLocation(program, 'u_color');
-    // gl.uniform4fv(colorLocation, [0.0, 1.0, 0.0, 1.0]);
-    //
-    // gl.bufferData(
-    //   gl.ARRAY_BUFFER,
-    //   new Float32Array([
-    //     ...canvasToClipSpace(width, height, player.position.x, player.position.y),
-    //     ...canvasToClipSpace(width, height, rayPosition.x, rayPosition.y),
-    //   ]),
-    //   gl.STATIC_DRAW,
-    // );
-    // gl.drawArrays(gl.LINES, 0, 2);
+    // horizontal lines
+    let distanceHorizontal = Infinity;
+    const horizontalRayPosition = new Vector2D(0, 0);
+    const aTan = 1 / Math.tan(rayAngle);
 
-    const tan = Math.tan(rayAngle);
+    if (rayAngle < Math.PI) {
+      // looking up
+      rayPosition.y = Math.floor(player.position.y / mapS) * mapS - 0.0001;
+      rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
+      offset.y = -mapS;
+      offset.x = -offset.y * aTan;
+    }
+    if (rayAngle > Math.PI) {
+      // looking down
+      rayPosition.y = Math.ceil(player.position.y / mapS) * mapS + mapS;
+      rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
+      offset.y = mapS;
+      offset.x = -offset.y * aTan;
+    }
+    if (rayAngle === 0 || rayAngle === Math.PI) {
+      // looking straight left or right
+      rayPosition.x = player.position.x;
+      rayPosition.y = player.position.y;
+      dof = maxDof;
+    }
+
+    while (dof < maxDof) {
+      const mx = Math.floor(rayPosition.x / mapS);
+      const my = Math.floor(rayPosition.y / mapS);
+      const mp = my * mapX + mx;
+      // hit
+      if (mp < mapX * mapY && map[mp] === 1) {
+        horizontalRayPosition.x = rayPosition.x;
+        horizontalRayPosition.y = rayPosition.y;
+        distanceHorizontal = player.position.distance(horizontalRayPosition);
+        dof = maxDof;
+      } else {
+        // go to next line
+        rayPosition = rayPosition.add(offset);
+        dof++;
+      }
+    }
+
+    dof = 0;
+
     // vertical lines
+    let distanceVertical = Infinity;
+    const verticalRayPosition = new Vector2D(0, 0);
+    const tan = Math.tan(rayAngle);
+
     if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) {
       // looking left
       rayPosition.x = Math.floor(player.position.x / mapS) * mapS - 0.0001;
@@ -220,6 +218,9 @@ const drawRays2D = (
       const mp = my * mapX + mx;
       // hit
       if (mp < mapX * mapY && map[mp] === 1) {
+        verticalRayPosition.x = rayPosition.x;
+        verticalRayPosition.y = rayPosition.y;
+        distanceVertical = player.position.distance(verticalRayPosition);
         dof = maxDof;
       } else {
         // go to next line
@@ -228,7 +229,18 @@ const drawRays2D = (
       }
     }
 
-    const colorLocation = gl.getUniformLocation(program, 'u_color');
+    if (distanceVertical < distanceHorizontal) {
+      rayPosition.x = verticalRayPosition.x;
+      rayPosition.y = verticalRayPosition.y;
+      distanceHorizontal = distanceVertical;
+    }
+
+    if (distanceHorizontal < distanceVertical) {
+      rayPosition.x = horizontalRayPosition.x;
+      rayPosition.y = horizontalRayPosition.y;
+      distanceVertical = distanceHorizontal;
+    }
+
     gl.uniform4fv(colorLocation, [1.0, 0.0, 0.0, 1.0]);
 
     gl.bufferData(
