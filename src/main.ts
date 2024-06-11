@@ -155,7 +155,7 @@ const drawRays2D = (
     }
     if (rayAngle > Math.PI) {
       // looking down
-      rayPosition.y = Math.ceil(player.position.y / mapS) * mapS + mapS;
+      rayPosition.y = Math.floor(player.position.y / mapS) * mapS + mapS;
       rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
       offset.y = mapS;
       offset.x = -offset.y * aTan;
@@ -200,7 +200,7 @@ const drawRays2D = (
     }
     if ((3 * Math.PI) / 2 < rayAngle || rayAngle < Math.PI / 2) {
       // looking right
-      rayPosition.x = Math.ceil(player.position.x / mapS) * mapS + mapS;
+      rayPosition.x = Math.floor(player.position.x / mapS) * mapS + mapS;
       rayPosition.y = (player.position.x - rayPosition.x) * tan + player.position.y;
       offset.x = mapS;
       offset.y = -offset.x * tan;
