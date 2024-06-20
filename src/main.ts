@@ -152,6 +152,10 @@ const drawRays2D = (
 
   const colorLocation = gl.getUniformLocation(program, 'u_color');
 
+  const horizontalHitWallColor = [0.9, 0.0, 0.0, 1.0];
+  const verticalHitWallColor = [0.7, 0.0, 0.0, 1.0];
+  let wallColor = horizontalHitWallColor;
+
   let rayAngle = player.angle - rayAngleDelta * (fov / 2);
   if (rayAngle < 0) rayAngle += 2 * Math.PI;
   if (2 * Math.PI < rayAngle) rayAngle -= 2 * Math.PI;
@@ -207,8 +211,11 @@ const drawRays2D = (
 
     dof = 0;
 
+    rayPosition.x = horizontalRayPosition.x;
+    rayPosition.y = horizontalRayPosition.y;
+
     // vertical lines
-    let distanceVertical = Infinity;
+    let distanceVertical = distanceHorizontal;
     const verticalRayPosition = new Vector2D(0, 0);
     const tan = Math.tan(rayAngle);
 
@@ -254,15 +261,10 @@ const drawRays2D = (
       rayPosition.x = verticalRayPosition.x;
       rayPosition.y = verticalRayPosition.y;
       distanceHorizontal = distanceVertical;
+      wallColor = verticalHitWallColor;
     }
 
-    if (distanceHorizontal < distanceVertical) {
-      rayPosition.x = horizontalRayPosition.x;
-      rayPosition.y = horizontalRayPosition.y;
-      distanceVertical = distanceHorizontal;
-    }
-
-    gl.uniform4fv(colorLocation, [1.0, 0.0, 0.0, 1.0]);
+    gl.uniform4fv(colorLocation, wallColor);
 
     gl.bufferData(
       gl.ARRAY_BUFFER,
@@ -273,6 +275,26 @@ const drawRays2D = (
       gl.STATIC_DRAW,
     );
     gl.drawArrays(gl.LINES, 0, 2);
+
+    // draw 3d walls
+    // fix fisheye
+    distanceHorizontal = distanceHorizontal * Math.cos(normalizeAngle(player.angle - rayAngle));
+    let lineHeight = (mapS * 320) / distanceHorizontal;
+    if (lineHeight > 320) lineHeight = 320;
+    const lineOffset = 160 - lineHeight / 2;
+
+    // can't change line width so this allows us to draw rectangles to build the walls
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([
+        ...canvasToClipSpace(width, height, r * 8 + 530, lineOffset),
+        ...canvasToClipSpace(width, height, r * 8 + 530, lineHeight + lineOffset),
+        ...canvasToClipSpace(width, height, r * 8 + 530 + 8, lineHeight + lineOffset),
+        ...canvasToClipSpace(width, height, r * 8 + 530 + 8, lineOffset),
+      ]),
+      gl.STATIC_DRAW,
+    );
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 
     rayAngle += rayAngleDelta;
     if (rayAngle < 0) rayAngle += 2 * Math.PI;
