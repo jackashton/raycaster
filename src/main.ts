@@ -96,9 +96,10 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
 const drawPlayer2D = (
   gl: WebGL2RenderingContext,
   program: WebGLProgram,
-  { color }: Player,
+  { position, delta, color }: Player,
   width: number,
   height: number,
+  showDirection = false,
 ) => {
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -116,7 +117,24 @@ const drawPlayer2D = (
   gl.uniform4fv(colorLocation, color);
 
   gl.drawArrays(gl.POINTS, 0, 1);
+
+  if (showDirection) {
+    // draw player direction line
+    const end = position.add(delta.multiply(20));
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([
+        ...canvasToClipSpace(width, height, position.x, position.y),
+        ...canvasToClipSpace(width, height, end.x, end.y),
+      ]),
+      gl.STATIC_DRAW,
+    );
+    gl.drawArrays(gl.LINES, 0, 2);
+  }
 };
+
+const rayAngleDelta = (2 * Math.PI) / 360;
+const fov = 60;
 
 const drawRays2D = (
   gl: WebGL2RenderingContext,
@@ -134,12 +152,15 @@ const drawRays2D = (
 
   const colorLocation = gl.getUniformLocation(program, 'u_color');
 
-  const rayAngle = player.angle;
+  let rayAngle = player.angle - rayAngleDelta * (fov / 2);
+  if (rayAngle < 0) rayAngle += 2 * Math.PI;
+  if (2 * Math.PI < rayAngle) rayAngle -= 2 * Math.PI;
+
   const offset = new Vector2D(0, 0);
   const maxDof = 8;
 
   let rayPosition = new Vector2D(0, 0);
-  for (let r = 0; r < 1; r++) {
+  for (let r = 0; r < fov; r++) {
     let dof = 0;
     // horizontal lines
     let distanceHorizontal = Infinity;
@@ -252,10 +273,14 @@ const drawRays2D = (
       gl.STATIC_DRAW,
     );
     gl.drawArrays(gl.LINES, 0, 2);
+
+    rayAngle += rayAngleDelta;
+    if (rayAngle < 0) rayAngle += 2 * Math.PI;
+    if (2 * Math.PI < rayAngle) rayAngle -= 2 * Math.PI;
   }
 };
 
-const player = new Player(new Vector2D(400, 150), [1.0, 0.0, 0.0, 1.0]);
+const player = new Player(new Vector2D(400, 150), [0.0, 1.0, 1.0, 1.0]);
 
 // key mappings
 enum Action {
@@ -329,8 +354,8 @@ const display = () => {
   gl.clear(gl.COLOR_BUFFER_BIT);
   updatePosition(player);
   drawMap2D(gl, program, canvas.width, canvas.height);
-  drawPlayer2D(gl, program, player, canvas.width, canvas.height);
   drawRays2D(gl, program, player, canvas.width, canvas.height);
+  drawPlayer2D(gl, program, player, canvas.width, canvas.height, true);
   requestAnimationFrame(display);
 };
 
