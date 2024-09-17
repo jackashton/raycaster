@@ -2,6 +2,7 @@ import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
 import { Player } from './player';
 import { canvasToClipSpace } from './utils/toClipSpace';
+import { checkerboard } from './textures';
 
 const vertexShaderSource = `
   attribute vec2 a_position;
@@ -54,10 +55,19 @@ const mapX = 8;
 const mapY = 8;
 const mapS = 64;
 const gap = 1;
+
+/* eslint-disable */
 const map = [
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
-  1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1,
+  1, 0, 1, 0, 0, 0, 0, 1,
+  1, 0, 1, 0, 0, 0, 0, 1,
+  1, 0, 0, 0, 0, 0, 0, 1,
+  1, 0, 0, 0, 0, 1, 0, 1,
+  1, 0, 0, 0, 0, 0, 0, 1,
+  1, 0, 0, 0, 0, 0, 0, 1,
+  1, 1, 1, 1, 1, 1, 1, 1,
 ];
+/* eslint-enable */
 
 const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: number, height: number) => {
   const positionBuffer = gl.createBuffer();
@@ -154,9 +164,8 @@ const drawRays2D = (
 
   const horizontalHitWallColor = [0.9, 0.0, 0.0, 1.0];
   const verticalHitWallColor = [0.7, 0.0, 0.0, 1.0];
-  let wallColor = horizontalHitWallColor;
 
-  let rayAngle = player.angle - rayAngleDelta * (fov / 2);
+  let rayAngle = player.angle + rayAngleDelta * (fov / 2);
   if (rayAngle < 0) rayAngle += 2 * Math.PI;
   if (2 * Math.PI < rayAngle) rayAngle -= 2 * Math.PI;
 
@@ -211,11 +220,8 @@ const drawRays2D = (
 
     dof = 0;
 
-    rayPosition.x = horizontalRayPosition.x;
-    rayPosition.y = horizontalRayPosition.y;
-
     // vertical lines
-    let distanceVertical = distanceHorizontal;
+    let distanceVertical = Infinity;
     const verticalRayPosition = new Vector2D(0, 0);
     const tan = Math.tan(rayAngle);
 
@@ -257,11 +263,25 @@ const drawRays2D = (
       }
     }
 
+    let wallColor = horizontalHitWallColor;
+    let distance = 0;
+    let shade = 1;
+
     if (distanceVertical < distanceHorizontal) {
       rayPosition.x = verticalRayPosition.x;
       rayPosition.y = verticalRayPosition.y;
       distanceHorizontal = distanceVertical;
+      distance = distanceHorizontal;
       wallColor = verticalHitWallColor;
+      shade = 0.5;
+    }
+
+    if (distanceHorizontal < distanceVertical) {
+      rayPosition.x = horizontalRayPosition.x;
+      rayPosition.y = horizontalRayPosition.y;
+      distanceVertical = distanceHorizontal;
+      distance = distanceVertical;
+      wallColor = horizontalHitWallColor;
     }
 
     gl.uniform4fv(colorLocation, wallColor);
@@ -278,25 +298,40 @@ const drawRays2D = (
 
     // draw 3d walls
     // fix fisheye
-    distanceHorizontal = distanceHorizontal * Math.cos(normalizeAngle(player.angle - rayAngle));
-    let lineHeight = (mapS * 320) / distanceHorizontal;
-    if (lineHeight > 320) lineHeight = 320;
-    const lineOffset = 160 - lineHeight / 2;
+    if (distance === distanceHorizontal) distance = distance * Math.cos(normalizeAngle(player.angle - rayAngle));
 
-    // can't change line width so this allows us to draw rectangles to build the walls
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([
-        ...canvasToClipSpace(width, height, r * 8 + 530, lineOffset),
-        ...canvasToClipSpace(width, height, r * 8 + 530, lineHeight + lineOffset),
-        ...canvasToClipSpace(width, height, r * 8 + 530 + 8, lineHeight + lineOffset),
-        ...canvasToClipSpace(width, height, r * 8 + 530 + 8, lineOffset),
-      ]),
-      gl.STATIC_DRAW,
-    );
-    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+    let lineHeight = (mapS * 320) / distance;
+    const textureSize = 32;
+    const textureYStep = textureSize / lineHeight;
+    let textureYOffset = 0;
 
-    rayAngle += rayAngleDelta;
+    if (lineHeight > 320) {
+      textureYOffset = (lineHeight - 320) / 2;
+      lineHeight = 320;
+    }
+
+    const lineOffset = 160 - (lineHeight >> 1);
+
+    let textureY = textureYOffset * textureYStep;
+    for (let y = 0; y < lineHeight; y++) {
+      const textureColor = checkerboard[Math.floor(textureY) * textureSize] * shade;
+      wallColor = [textureColor, textureColor, textureColor, 1.0];
+      gl.uniform4fv(colorLocation, wallColor);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+          ...canvasToClipSpace(width, height, r * 8 + 530, y + lineOffset),
+          ...canvasToClipSpace(width, height, r * 8 + 530, y + lineOffset + 8),
+          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y + lineOffset + 8),
+          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y + lineOffset),
+        ]),
+        gl.STATIC_DRAW,
+      );
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+      textureY += textureYStep;
+    }
+
+    rayAngle -= rayAngleDelta;
     if (rayAngle < 0) rayAngle += 2 * Math.PI;
     if (2 * Math.PI < rayAngle) rayAngle -= 2 * Math.PI;
   }
@@ -337,10 +372,12 @@ const keysPressed: Partial<Record<Action, boolean>> = {};
 const updatePosition = (player: Player) => {
   const moveDirection = keysPressed[Action.MOVE_RIGHT] ? -1 : keysPressed[Action.MOVE_LEFT] ? 1 : 0;
 
+  let newplayerPosition = player.position;
+
   if (moveDirection) {
     if (keysPressed[Action.STRAFE]) {
       const strafeAngle = player.angle + (Math.PI / 2) * moveDirection;
-      player.position = player.position.add(
+      newplayerPosition = player.position.add(
         new Vector2D(Math.cos(strafeAngle), -Math.sin(strafeAngle)).multiply(player.moveSpeed),
       );
     } else {
@@ -349,11 +386,34 @@ const updatePosition = (player: Player) => {
     }
   }
   if (keysPressed[Action.MOVE_UP]) {
-    player.position = player.position.add(player.delta.multiply(player.moveSpeed));
+    newplayerPosition = player.position.add(player.delta.multiply(player.moveSpeed));
   }
   if (keysPressed[Action.MOVE_DOWN]) {
-    player.position = player.position.subtract(player.delta.multiply(player.moveSpeed));
+    newplayerPosition = player.position.subtract(player.delta.multiply(player.moveSpeed));
   }
+
+  const offsetSize = 10;
+  const offset = new Vector2D((player.delta.x < 0 ? -1 : 1) * offsetSize, (player.delta.y < 0 ? -1 : 1) * offsetSize);
+
+  // x collision
+  if (
+    map[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x + offset.x) / mapS)] ||
+    map[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x - offset.x) / mapS)]
+  ) {
+    // don't move player in the x-axis
+    newplayerPosition.x = player.position.x;
+  }
+
+  // y collision
+  if (
+    map[Math.floor((newplayerPosition.y + offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)] ||
+    map[Math.floor((newplayerPosition.y - offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)]
+  ) {
+    // don't move player in the y-axis
+    newplayerPosition.y = player.position.y;
+  }
+
+  player.position = newplayerPosition;
 };
 
 const handleKeyboardEvent = ({ key, shiftKey }: KeyboardEvent, isPressed: boolean) => {
