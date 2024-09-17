@@ -297,7 +297,7 @@ const drawRays2D = (
     gl.drawArrays(gl.LINES, 0, 2);
 
     // draw 3d walls
-    // fix fisheye
+    // fix fisheye only on horizontal distance
     if (distance === distanceHorizontal) distance = distance * Math.cos(normalizeAngle(player.angle - rayAngle));
 
     let lineHeight = (mapS * 320) / distance;
@@ -313,8 +313,24 @@ const drawRays2D = (
     const lineOffset = 160 - (lineHeight >> 1);
 
     let textureY = textureYOffset * textureYStep;
+
+    let textureX = 0;
+    if (shade === 1) {
+      // up/down walls
+      textureX = (rayPosition.x / 2) % textureSize;
+      // flip x coords of texture if ray is going "down", if you don't do this textures will appear flipped on
+      // the "south/down" walls of the map.
+      if (Math.PI < rayAngle) textureX = textureSize - 1 - textureX;
+    } else {
+      // left/right walls
+      textureX = (rayPosition.y / 2) % textureSize;
+      // flip x coords of texture if ray is going "left", if you don't do this textures will appear flipped on the "west/left"
+      // walls of the map
+      if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = textureSize - 1 - textureX;
+    }
+
     for (let y = 0; y < lineHeight; y++) {
-      const textureColor = checkerboard[Math.floor(textureY) * textureSize] * shade;
+      const textureColor = checkerboard[Math.floor(textureY) * textureSize + Math.floor(textureX)] * shade;
       wallColor = [textureColor, textureColor, textureColor, 1.0];
       gl.uniform4fv(colorLocation, wallColor);
       gl.bufferData(
