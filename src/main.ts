@@ -2,7 +2,7 @@ import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
 import { Player } from './player';
 import { canvasToClipSpace } from './utils/toClipSpace';
-import { checkerboard } from './textures';
+import { textures } from './textures';
 
 const vertexShaderSource = `
   attribute vec2 a_position;
@@ -57,8 +57,8 @@ const mapS = 64;
 const gap = 1;
 
 /* eslint-disable */
-const map = [
-  1, 1, 1, 1, 1, 1, 1, 1,
+const mapW = [
+  1, 1, 1, 1, 1, 2, 1, 1,
   1, 0, 1, 0, 0, 0, 0, 1,
   1, 0, 1, 0, 0, 0, 0, 1,
   1, 0, 0, 0, 0, 0, 0, 1,
@@ -82,7 +82,7 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
   for (let y = 0; y < mapY; y++) {
     for (let x = 0; x < mapX; x++) {
       let color = [0.0, 0.0, 0.0, 1.0];
-      if (map[y * mapX + x]) {
+      if (mapW[y * mapX + x]) {
         color = [1.0, 1.0, 1.0, 1.0];
       }
 
@@ -166,50 +166,59 @@ const drawRays2D = (
   const verticalHitWallColor = [0.7, 0.0, 0.0, 1.0];
 
   let rayAngle = player.angle + rayAngleDelta * (fov / 2);
-  if (rayAngle < 0) rayAngle += 2 * Math.PI;
-  if (2 * Math.PI < rayAngle) rayAngle -= 2 * Math.PI;
+  rayAngle = normalizeAngle(rayAngle);
 
   const offset = new Vector2D(0, 0);
   const maxDof = 8;
 
-  let rayPosition = new Vector2D(0, 0);
   for (let r = 0; r < fov; r++) {
     let dof = 0;
-    // horizontal lines
-    let distanceHorizontal = Infinity;
-    const horizontalRayPosition = new Vector2D(0, 0);
-    const aTan = 1 / Math.tan(rayAngle);
 
+    // Precompute common trigonometric values
+    const tan = Math.tan(rayAngle);
+    const aTan = 1 / tan;
+
+    let rayPosition = new Vector2D(player.position.x, player.position.y);
+    let distanceHorizontal = Infinity;
+    let distanceVertical = Infinity;
+
+    // Horizontal and vertical positions to be reused
+    const horizontalRayPosition = new Vector2D(0, 0);
+    const verticalRayPosition = new Vector2D(0, 0);
+    let horizontalMapTextureIndex = 0;
+    let verticalMapTextureIndex = 0;
+
+    // Horizontal line checks
     if (rayAngle < Math.PI) {
       // looking up
       rayPosition.y = Math.floor(player.position.y / mapS) * mapS - 0.0001;
       rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
       offset.y = -mapS;
       offset.x = -offset.y * aTan;
-    }
-    if (rayAngle > Math.PI) {
+    } else if (rayAngle > Math.PI) {
       // looking down
       rayPosition.y = Math.floor(player.position.y / mapS) * mapS + mapS;
       rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
       offset.y = mapS;
       offset.x = -offset.y * aTan;
-    }
-    if (rayAngle === 0 || rayAngle === Math.PI) {
+    } else {
       // looking straight left or right
       rayPosition.x = player.position.x;
       rayPosition.y = player.position.y;
       dof = maxDof;
     }
 
+    // Perform raycasting for horizontal lines
     while (dof < maxDof) {
       const mx = Math.floor(rayPosition.x / mapS);
       const my = Math.floor(rayPosition.y / mapS);
       const mp = my * mapX + mx;
       // hit
-      if (mp < mapX * mapY && map[mp] === 1) {
+      if (mp < mapX * mapY && mapW[mp] > 0) {
         horizontalRayPosition.x = rayPosition.x;
         horizontalRayPosition.y = rayPosition.y;
         distanceHorizontal = player.position.distance(horizontalRayPosition);
+        horizontalMapTextureIndex = mapW[mp] - 1;
         dof = maxDof;
       } else {
         // go to next line
@@ -218,43 +227,39 @@ const drawRays2D = (
       }
     }
 
-    dof = 0;
+    dof = 0; // Reset for vertical check
 
-    // vertical lines
-    let distanceVertical = Infinity;
-    const verticalRayPosition = new Vector2D(0, 0);
-    const tan = Math.tan(rayAngle);
-
-    if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) {
+    // Vertical line checks
+    if (rayAngle < Math.PI / 2 || rayAngle > (3 * Math.PI) / 2) {
+      // looking right
+      rayPosition.x = Math.floor(player.position.x / mapS) * mapS + mapS;
+      rayPosition.y = (player.position.x - rayPosition.x) * tan + player.position.y;
+      offset.x = mapS;
+      offset.y = -offset.x * tan;
+    } else if (rayAngle === Math.PI / 2 || rayAngle === (3 * Math.PI) / 2) {
+      // looking straight up or down
+      rayPosition.x = player.position.x;
+      rayPosition.y = player.position.y;
+      dof = maxDof;
+    } else {
       // looking left
       rayPosition.x = Math.floor(player.position.x / mapS) * mapS - 0.0001;
       rayPosition.y = (player.position.x - rayPosition.x) * tan + player.position.y;
       offset.x = -mapS;
       offset.y = -offset.x * tan;
     }
-    if ((3 * Math.PI) / 2 < rayAngle || rayAngle < Math.PI / 2) {
-      // looking right
-      rayPosition.x = Math.floor(player.position.x / mapS) * mapS + mapS;
-      rayPosition.y = (player.position.x - rayPosition.x) * tan + player.position.y;
-      offset.x = mapS;
-      offset.y = -offset.x * tan;
-    }
-    if (rayAngle === Math.PI / 2 || rayAngle === (3 * Math.PI) / 2) {
-      // looking straight up or down
-      rayPosition.x = player.position.x;
-      rayPosition.y = player.position.y;
-      dof = maxDof;
-    }
 
+    // Perform raycasting for vertical lines
     while (dof < maxDof) {
       const mx = Math.floor(rayPosition.x / mapS);
       const my = Math.floor(rayPosition.y / mapS);
       const mp = my * mapX + mx;
       // hit
-      if (mp < mapX * mapY && map[mp] === 1) {
+      if (mp < mapX * mapY && mapW[mp] > 0) {
         verticalRayPosition.x = rayPosition.x;
         verticalRayPosition.y = rayPosition.y;
         distanceVertical = player.position.distance(verticalRayPosition);
+        verticalMapTextureIndex = mapW[mp] - 1;
         dof = maxDof;
       } else {
         // go to next line
@@ -273,6 +278,7 @@ const drawRays2D = (
       distanceHorizontal = distanceVertical;
       distance = distanceHorizontal;
       wallColor = verticalHitWallColor;
+      horizontalMapTextureIndex = verticalMapTextureIndex;
       shade = 0.5;
     }
 
@@ -285,7 +291,6 @@ const drawRays2D = (
     }
 
     gl.uniform4fv(colorLocation, wallColor);
-
     gl.bufferData(
       gl.ARRAY_BUFFER,
       new Float32Array([
@@ -319,18 +324,19 @@ const drawRays2D = (
       // up/down walls
       textureX = (rayPosition.x / 2) % textureSize;
       // flip x coords of texture if ray is going "down", if you don't do this textures will appear flipped on
-      // the "south/down" walls of the map.
+      // the "south/down" walls of the mapW.
       if (Math.PI < rayAngle) textureX = textureSize - 1 - textureX;
     } else {
       // left/right walls
       textureX = (rayPosition.y / 2) % textureSize;
       // flip x coords of texture if ray is going "left", if you don't do this textures will appear flipped on the "west/left"
-      // walls of the map
+      // walls of the mapW
       if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = textureSize - 1 - textureX;
     }
 
     for (let y = 0; y < lineHeight; y++) {
-      const textureColor = checkerboard[Math.floor(textureY) * textureSize + Math.floor(textureX)] * shade;
+      const textureColor =
+        textures[horizontalMapTextureIndex][Math.trunc(textureY) * textureSize + Math.trunc(textureX)] * shade;
       wallColor = [textureColor, textureColor, textureColor, 1.0];
       gl.uniform4fv(colorLocation, wallColor);
       gl.bufferData(
@@ -347,9 +353,8 @@ const drawRays2D = (
       textureY += textureYStep;
     }
 
-    rayAngle -= rayAngleDelta;
-    if (rayAngle < 0) rayAngle += 2 * Math.PI;
-    if (2 * Math.PI < rayAngle) rayAngle -= 2 * Math.PI;
+    // Move to next ray
+    rayAngle = normalizeAngle(rayAngle - rayAngleDelta);
   }
 };
 
@@ -413,8 +418,8 @@ const updatePosition = (player: Player) => {
 
   // x collision
   if (
-    map[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x + offset.x) / mapS)] ||
-    map[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x - offset.x) / mapS)]
+    mapW[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x + offset.x) / mapS)] ||
+    mapW[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x - offset.x) / mapS)]
   ) {
     // don't move player in the x-axis
     newplayerPosition.x = player.position.x;
@@ -422,8 +427,8 @@ const updatePosition = (player: Player) => {
 
   // y collision
   if (
-    map[Math.floor((newplayerPosition.y + offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)] ||
-    map[Math.floor((newplayerPosition.y - offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)]
+    mapW[Math.floor((newplayerPosition.y + offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)] ||
+    mapW[Math.floor((newplayerPosition.y - offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)]
   ) {
     // don't move player in the y-axis
     newplayerPosition.y = player.position.y;
