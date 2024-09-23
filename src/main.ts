@@ -338,6 +338,10 @@ const drawRays2D = (
       const textureColor =
         textures[horizontalMapTextureIndex][Math.trunc(textureY) * textureSize + Math.trunc(textureX)] * shade;
       wallColor = [textureColor, textureColor, textureColor, 1.0];
+      if (horizontalMapTextureIndex === 0) wallColor = [textureColor, textureColor / 2, textureColor / 2, 1]; // red
+      if (horizontalMapTextureIndex === 1) wallColor = [textureColor, textureColor, textureColor / 2, 1]; // yellow
+      if (horizontalMapTextureIndex === 2) wallColor = [textureColor / 2, textureColor / 2, textureColor, 1]; // blue
+      if (horizontalMapTextureIndex === 3) wallColor = [textureColor / 2, textureColor, textureColor / 2, 1]; // green
       gl.uniform4fv(colorLocation, wallColor);
       gl.bufferData(
         gl.ARRAY_BUFFER,
