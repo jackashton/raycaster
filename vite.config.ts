@@ -1,5 +1,6 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
+// import vitePluginRaw from 'vite-plugin-raw';
 
 export default defineConfig({
   root: __dirname,
@@ -14,6 +15,12 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
   },
+  assetsInclude: ['**/*.ppm'],
+  // plugins: [
+  //   vitePluginRaw({
+  //     match: /\.ppm$/,
+  //   }),
+  // ],
 
   test: {
     globals: true,

@@ -1,8 +1,23 @@
 import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
-import { Player } from './player';
 import { toClipSpace } from './utils/toClipSpace';
-import { textures } from './textures';
+import { fetchPPMData, parsePPMP6 } from './utils/parsePPM';
+import { Player } from './player';
+
+import dark_stone_9 from './assets/textures/dark_stone_9.ppm';
+import dark_brick_2 from './assets/textures/dark_brick_2.ppm';
+import dark_corrupted_4 from './assets/textures/dark_corrupted_4.ppm';
+import toxic_3 from './assets/textures/toxic_3.ppm';
+import door_1 from './assets/textures/door_1.ppm';
+
+const textures = await Promise.all(
+  [dark_stone_9, dark_brick_2, dark_corrupted_4, door_1, toxic_3].map(async (texture) => {
+    const data = await fetchPPMData(texture);
+    if (!data) throw new Error(`Failed to parse ${texture}`);
+    const { values } = parsePPMP6(data);
+    return values;
+  }),
+);
 
 const vertexShaderSource = `
   attribute vec2 a_position;
@@ -59,26 +74,26 @@ const gap = 1;
 
 /* eslint-disable */
 const mapW = [
-  1, 1, 1, 1, 1, 3, 1, 1,
-  1, 0, 0, 1, 0, 0, 0, 1,
-  1, 0, 0, 4, 0, 0, 0, 1,
-  1, 1, 4, 1, 0, 0, 0, 1,
-  2, 0, 0, 0, 0, 2, 0, 1,
-  2, 0, 0, 0, 0, 0, 0, 1,
-  2, 0, 0, 0, 0, 0, 0, 1,
-  1, 1, 3, 1, 3, 1, 3, 1,
+  2, 2, 2, 2, 2, 2, 2, 2,
+  2, 0, 0, 2, 0, 0, 0, 2,
+  2, 0, 0, 4, 0, 0, 0, 2,
+  2, 2, 4, 2, 0, 0, 0, 2,
+  2, 0, 0, 0, 0, 2, 0, 2,
+  2, 0, 0, 0, 0, 0, 0, 2,
+  2, 0, 0, 0, 0, 0, 0, 2,
+  2, 2, 2, 2, 2, 2, 2, 2,
 ];
 /* eslint-enable */
 
 /* eslint-disable */
 const mapF = [
   0, 0, 0, 0, 0, 0, 0, 0,
-  0, 1, 1, 0, 1, 1, 1, 0,
-  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 5, 5, 0, 1, 1, 1, 0,
+  0, 5, 5, 1, 1, 1, 1, 0,
   0, 0, 1, 0, 1, 1, 1, 0,
   0, 1, 1, 1, 1, 0, 1, 0,
-  0, 1, 1, 1, 1, 1, 1, 0,
-  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 5, 0,
+  0, 1, 1, 1, 1, 5, 5, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
 ];
 /* eslint-enable */
@@ -86,15 +101,17 @@ const mapF = [
 /* eslint-disable */
 const mapC = [
   0, 0, 0, 0, 0, 0, 0, 0,
-  0, 1, 1, 0, 1, 1, 1, 0,
-  0, 1, 1, 1, 1, 1, 1, 0,
-  0, 0, 1, 0, 1, 1, 1, 0,
-  0, 1, 1, 1, 1, 0, 1, 0,
-  0, 1, 1, 1, 1, 1, 1, 0,
-  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 3, 3, 0, 3, 3, 3, 0,
+  0, 3, 3, 3, 3, 3, 3, 0,
+  0, 0, 3, 0, 3, 3, 3, 0,
+  0, 3, 3, 3, 3, 0, 3, 0,
+  0, 3, 3, 3, 3, 3, 3, 0,
+  0, 3, 3, 3, 3, 3, 3, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
 ];
 /* eslint-enable */
+
+const textureSize = 32;
 
 const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: number, height: number) => {
   const positionBuffer = gl.createBuffer();
@@ -334,7 +351,6 @@ const drawRays2D = (
     if (distance === distanceHorizontal) distance = distance * rayAngleFixed;
 
     let lineHeight = (mapS * screenHeight) / distance;
-    const textureSize = 32;
     const textureYStep = textureSize / lineHeight;
     let textureYOffset = 0;
 
@@ -363,14 +379,11 @@ const drawRays2D = (
     }
 
     for (let y = 0; y < lineHeight; y++) {
-      const textureColor =
-        textures[horizontalMapTextureIndex][Math.trunc(textureY) * textureSize + Math.trunc(textureX)] * shade;
-      wallColor = [textureColor, textureColor, textureColor, 1.0];
-      if (horizontalMapTextureIndex === 0) wallColor = [textureColor, textureColor / 2, textureColor / 2, 1]; // red
-      if (horizontalMapTextureIndex === 1) wallColor = [textureColor, textureColor, textureColor / 2, 1]; // yellow
-      if (horizontalMapTextureIndex === 2) wallColor = [textureColor / 2, textureColor / 2, textureColor, 1]; // blue
-      if (horizontalMapTextureIndex === 3) wallColor = [textureColor / 2, textureColor, textureColor / 2, 1]; // green
-      gl.uniform4fv(colorLocation, wallColor);
+      const pixelIndex = (Math.trunc(textureY) * textureSize + Math.trunc(textureX)) * 3;
+      const red = textures[horizontalMapTextureIndex][pixelIndex] / 255;
+      const green = textures[horizontalMapTextureIndex][pixelIndex + 1] / 255;
+      const blue = textures[horizontalMapTextureIndex][pixelIndex + 2] / 255;
+      gl.uniform4fv(colorLocation, [red * shade, green * shade, blue * shade, 1.0]);
       gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
@@ -392,11 +405,13 @@ const drawRays2D = (
       const textureX = player.position.x / 2 + (Math.cos(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
       const textureY = player.position.y / 2 - (Math.sin(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
       let mp = mapF[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
-      let textureColor =
-        textures[mp][
-          (Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))
-        ] * 0.7;
-      gl.uniform4fv(colorLocation, [textureColor, textureColor, textureColor, 1]);
+      let pixelIndex =
+        ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
+        mp * 3;
+      let red = textures[mp][pixelIndex] / 255;
+      let green = textures[mp][pixelIndex + 1] / 255;
+      let blue = textures[mp][pixelIndex + 2] / 255;
+      gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
       gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
@@ -411,11 +426,14 @@ const drawRays2D = (
 
       // ceilings
       mp = mapC[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
-      textureColor =
-        textures[mp][
-          (Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))
-        ] * 0.7;
-      gl.uniform4fv(colorLocation, [textureColor, textureColor, textureColor, 1]);
+      pixelIndex =
+        ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
+        mp * 3;
+      red = textures[mp][pixelIndex] / 255;
+      green = textures[mp][pixelIndex + 1] / 255;
+      blue = textures[mp][pixelIndex + 2] / 255;
+      gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
+      gl.uniform4fv(colorLocation, [red, green, blue, 1]);
       gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
