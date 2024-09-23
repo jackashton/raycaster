@@ -58,14 +58,14 @@ const gap = 1;
 
 /* eslint-disable */
 const mapW = [
-  1, 1, 1, 1, 1, 2, 1, 1,
-  1, 0, 1, 0, 0, 0, 0, 1,
-  1, 0, 1, 0, 0, 0, 0, 1,
-  1, 0, 0, 0, 0, 0, 0, 1,
-  1, 0, 0, 0, 0, 1, 0, 1,
-  1, 0, 0, 0, 0, 0, 0, 1,
-  1, 0, 0, 0, 0, 0, 0, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 3, 1, 1,
+  1, 0, 0, 1, 0, 0, 0, 1,
+  1, 0, 0, 4, 0, 0, 0, 1,
+  1, 1, 4, 1, 0, 0, 0, 1,
+  2, 0, 0, 0, 0, 2, 0, 1,
+  2, 0, 0, 0, 0, 0, 0, 1,
+  2, 0, 0, 0, 0, 0, 0, 1,
+  1, 1, 3, 1, 3, 1, 3, 1,
 ];
 /* eslint-enable */
 
@@ -325,13 +325,13 @@ const drawRays2D = (
       textureX = (rayPosition.x / 2) % textureSize;
       // flip x coords of texture if ray is going "down", if you don't do this textures will appear flipped on
       // the "south/down" walls of the mapW.
-      if (Math.PI < rayAngle) textureX = textureSize - 1 - textureX;
+      if (Math.PI < rayAngle) textureX = textureSize - textureX; // may require  - 1
     } else {
       // left/right walls
       textureX = (rayPosition.y / 2) % textureSize;
       // flip x coords of texture if ray is going "left", if you don't do this textures will appear flipped on the "west/left"
       // walls of the mapW
-      if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = textureSize - 1 - textureX;
+      if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = textureSize - textureX; // may require - 1
     }
 
     for (let y = 0; y < lineHeight; y++) {
@@ -367,6 +367,7 @@ enum Action {
   MOVE_LEFT = 'MOVE_LEFT',
   MOVE_RIGHT = 'MOVE_RIGHT',
   STRAFE = 'STRAFE',
+  INTERACT = 'INTERACT',
 }
 
 // Default key mappings
@@ -384,6 +385,8 @@ const defaultKeyMappings: Record<KeyboardEvent['key'], Action> = {
   d: Action.MOVE_RIGHT,
   ArrowRight: Action.MOVE_RIGHT,
   Shift: Action.STRAFE,
+  E: Action.INTERACT,
+  e: Action.INTERACT,
 };
 
 const keyMappings = { ...defaultKeyMappings };
@@ -413,10 +416,10 @@ const updatePosition = (player: Player) => {
     newplayerPosition = player.position.subtract(player.delta.multiply(player.moveSpeed));
   }
 
-  const offsetSize = 10;
+  let offsetSize = 10;
   const offset = new Vector2D((player.delta.x < 0 ? -1 : 1) * offsetSize, (player.delta.y < 0 ? -1 : 1) * offsetSize);
 
-  // x collision
+  // player x collision
   if (
     mapW[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x + offset.x) / mapS)] ||
     mapW[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x - offset.x) / mapS)]
@@ -425,7 +428,7 @@ const updatePosition = (player: Player) => {
     newplayerPosition.x = player.position.x;
   }
 
-  // y collision
+  // player y collision
   if (
     mapW[Math.floor((newplayerPosition.y + offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)] ||
     mapW[Math.floor((newplayerPosition.y - offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)]
@@ -435,6 +438,30 @@ const updatePosition = (player: Player) => {
   }
 
   player.position = newplayerPosition;
+
+  // interaction collision is forward only
+  if (keysPressed[Action.INTERACT]) {
+    // reuse vars
+    offsetSize = 25;
+    offset.x = player.delta.x * offsetSize;
+    offset.y = player.delta.y * offsetSize;
+
+    // collision detection for forward offset
+    // player x collision
+    const forwardOffsetXmapWIndex =
+      Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x + offset.x) / mapS);
+    if (mapW[forwardOffsetXmapWIndex] === 4) {
+      // make wall empty if collision and it is a door
+      mapW[forwardOffsetXmapWIndex] = 0;
+    }
+
+    // player y collision
+    const forwardOffsetYmapWIndex =
+      Math.floor((newplayerPosition.y + offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS);
+    if (mapW[forwardOffsetYmapWIndex] === 4) {
+      mapW[forwardOffsetYmapWIndex] = 0;
+    }
+  }
 };
 
 const handleKeyboardEvent = ({ key, shiftKey }: KeyboardEvent, isPressed: boolean) => {
