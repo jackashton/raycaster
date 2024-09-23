@@ -1,6 +1,8 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
-// import vitePluginRaw from 'vite-plugin-raw';
+import path from 'path';
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 export default defineConfig({
   root: __dirname,
@@ -16,11 +18,6 @@ export default defineConfig({
     },
   },
   assetsInclude: ['**/*.ppm'],
-  // plugins: [
-  //   vitePluginRaw({
-  //     match: /\.ppm$/,
-  //   }),
-  // ],
 
   test: {
     globals: true,
