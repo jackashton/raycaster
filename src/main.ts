@@ -69,6 +69,19 @@ const mapW = [
 ];
 /* eslint-enable */
 
+/* eslint-disable */
+const mapF = [
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 0, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 0, 1, 0, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 0, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+];
+/* eslint-enable */
+
 const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: number, height: number) => {
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -301,9 +314,10 @@ const drawRays2D = (
     );
     gl.drawArrays(gl.LINES, 0, 2);
 
-    // draw 3d walls
+    // draw walls
     // fix fisheye only on horizontal distance
-    if (distance === distanceHorizontal) distance = distance * Math.cos(normalizeAngle(player.angle - rayAngle));
+    const rayAngleFixed = Math.cos(normalizeAngle(player.angle - rayAngle));
+    if (distance === distanceHorizontal) distance = distance * rayAngleFixed;
 
     let lineHeight = (mapS * 320) / distance;
     const textureSize = 32;
@@ -355,6 +369,30 @@ const drawRays2D = (
       );
       gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
       textureY += textureYStep;
+    }
+
+    // draw floors
+    for (let y = lineOffset + lineHeight; y < 320; y++) {
+      const dy = y - 320 / 2;
+      const textureX = player.position.x / 2 + (Math.cos(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
+      const textureY = player.position.y / 2 - (Math.sin(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
+      const mp = mapF[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
+      const textureColor =
+        textures[mp][
+          (Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))
+        ] * 0.7;
+      gl.uniform4fv(colorLocation, [textureColor, textureColor, textureColor, 1]);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+          ...canvasToClipSpace(width, height, r * 8 + 530, y),
+          ...canvasToClipSpace(width, height, r * 8 + 530, y + 8),
+          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y + 8),
+          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y),
+        ]),
+        gl.STATIC_DRAW,
+      );
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
     }
 
     // Move to next ray
