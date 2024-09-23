@@ -1,5 +1,4 @@
-export const canvasToClipSpace = (canvasWidth: number, canvasHeight: number, x: number, y: number): [number, number] => {
-  const clipX = 2 * (x / canvasWidth) - 1;
-  const clipY = 1 - 2 * (y / canvasHeight);
-  return [clipX, clipY];
-};
+export const toClipSpace = (width: number, height: number, x: number, y: number): [number, number] => [
+  2 * (x / width) - 1,
+  1 - 2 * (y / height),
+];
