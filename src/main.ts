@@ -1,7 +1,7 @@
 import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
 import { Player } from './player';
-import { canvasToClipSpace } from './utils/toClipSpace';
+import { toClipSpace } from './utils/toClipSpace';
 import { textures } from './textures';
 
 const vertexShaderSource = `
@@ -51,6 +51,7 @@ const createProgram = (
   return null;
 };
 
+const screenHeight = 320;
 const mapX = 8;
 const mapY = 8;
 const mapS = 64;
@@ -116,10 +117,10 @@ const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: num
       const yo = y * mapS;
 
       const vertices = [
-        ...canvasToClipSpace(width, height, xo + gap, yo + gap),
-        ...canvasToClipSpace(width, height, xo + gap, yo + mapS - gap),
-        ...canvasToClipSpace(width, height, xo + mapS - gap, yo + mapS - gap),
-        ...canvasToClipSpace(width, height, xo + mapS - gap, yo + gap),
+        ...toClipSpace(width, height, xo + gap, yo + gap),
+        ...toClipSpace(width, height, xo + gap, yo + mapS - gap),
+        ...toClipSpace(width, height, xo + mapS - gap, yo + mapS - gap),
+        ...toClipSpace(width, height, xo + mapS - gap, yo + gap),
       ];
 
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
@@ -141,7 +142,7 @@ const drawPlayer2D = (
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(
     gl.ARRAY_BUFFER,
-    new Float32Array(canvasToClipSpace(width, height, player.position.x, player.position.y)),
+    new Float32Array(toClipSpace(width, height, player.position.x, player.position.y)),
     gl.STATIC_DRAW,
   );
 
@@ -160,8 +161,8 @@ const drawPlayer2D = (
     gl.bufferData(
       gl.ARRAY_BUFFER,
       new Float32Array([
-        ...canvasToClipSpace(width, height, position.x, position.y),
-        ...canvasToClipSpace(width, height, end.x, end.y),
+        ...toClipSpace(width, height, position.x, position.y),
+        ...toClipSpace(width, height, end.x, end.y),
       ]),
       gl.STATIC_DRAW,
     );
@@ -320,8 +321,8 @@ const drawRays2D = (
     gl.bufferData(
       gl.ARRAY_BUFFER,
       new Float32Array([
-        ...canvasToClipSpace(width, height, player.position.x, player.position.y),
-        ...canvasToClipSpace(width, height, rayPosition.x, rayPosition.y),
+        ...toClipSpace(width, height, player.position.x, player.position.y),
+        ...toClipSpace(width, height, rayPosition.x, rayPosition.y),
       ]),
       gl.STATIC_DRAW,
     );
@@ -332,17 +333,17 @@ const drawRays2D = (
     const rayAngleFixed = Math.cos(normalizeAngle(player.angle - rayAngle));
     if (distance === distanceHorizontal) distance = distance * rayAngleFixed;
 
-    let lineHeight = (mapS * 320) / distance;
+    let lineHeight = (mapS * screenHeight) / distance;
     const textureSize = 32;
     const textureYStep = textureSize / lineHeight;
     let textureYOffset = 0;
 
-    if (lineHeight > 320) {
-      textureYOffset = (lineHeight - 320) / 2;
-      lineHeight = 320;
+    if (lineHeight > screenHeight) {
+      textureYOffset = (lineHeight - screenHeight) / 2;
+      lineHeight = screenHeight;
     }
 
-    const lineOffset = 160 - (lineHeight >> 1);
+    const lineOffset = screenHeight / 2 - (lineHeight >> 1);
 
     let textureY = textureYOffset * textureYStep;
 
@@ -373,10 +374,10 @@ const drawRays2D = (
       gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
-          ...canvasToClipSpace(width, height, r * 8 + 530, y + lineOffset),
-          ...canvasToClipSpace(width, height, r * 8 + 530, y + lineOffset + 8),
-          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y + lineOffset + 8),
-          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y + lineOffset),
+          ...toClipSpace(width, height, r * 8 + 530, y + lineOffset),
+          ...toClipSpace(width, height, r * 8 + 530, y + lineOffset + 8),
+          ...toClipSpace(width, height, r * 8 + 530 + 8, y + lineOffset + 8),
+          ...toClipSpace(width, height, r * 8 + 530 + 8, y + lineOffset),
         ]),
         gl.STATIC_DRAW,
       );
@@ -385,9 +386,9 @@ const drawRays2D = (
     }
 
     // draw floors and ceilings
-    for (let y = lineOffset + lineHeight; y < 320; y++) {
+    for (let y = lineOffset + lineHeight; y < screenHeight; y++) {
       // floors
-      const dy = y - 320 / 2;
+      const dy = y - screenHeight / 2;
       const textureX = player.position.x / 2 + (Math.cos(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
       const textureY = player.position.y / 2 - (Math.sin(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
       let mp = mapF[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
@@ -399,10 +400,10 @@ const drawRays2D = (
       gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
-          ...canvasToClipSpace(width, height, r * 8 + 530, y),
-          ...canvasToClipSpace(width, height, r * 8 + 530, y + 8),
-          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y + 8),
-          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y),
+          ...toClipSpace(width, height, r * 8 + 530, y),
+          ...toClipSpace(width, height, r * 8 + 530, y + 8),
+          ...toClipSpace(width, height, r * 8 + 530 + 8, y + 8),
+          ...toClipSpace(width, height, r * 8 + 530 + 8, y),
         ]),
         gl.STATIC_DRAW,
       );
@@ -418,10 +419,10 @@ const drawRays2D = (
       gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
-          ...canvasToClipSpace(width, height, r * 8 + 530, 320 - y),
-          ...canvasToClipSpace(width, height, r * 8 + 530, 320 - y + 8),
-          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, 320 - y + 8),
-          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, 320 - y),
+          ...toClipSpace(width, height, r * 8 + 530, screenHeight - y),
+          ...toClipSpace(width, height, r * 8 + 530, screenHeight - y + 8),
+          ...toClipSpace(width, height, r * 8 + 530 + 8, screenHeight - y + 8),
+          ...toClipSpace(width, height, r * 8 + 530 + 8, screenHeight - y),
         ]),
         gl.STATIC_DRAW,
       );
@@ -481,7 +482,6 @@ const updatePosition = (player: Player) => {
       );
     } else {
       player.angle = normalizeAngle(player.angle + moveDirection * player.turnSpeed);
-      player.updateDelta();
     }
   }
   if (keysPressed[Action.MOVE_UP]) {
