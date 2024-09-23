@@ -82,6 +82,19 @@ const mapF = [
 ];
 /* eslint-enable */
 
+/* eslint-disable */
+const mapC = [
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 1, 1, 0, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 0, 1, 0, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 0, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 1, 1, 1, 1, 1, 1, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+];
+/* eslint-enable */
+
 const drawMap2D = (gl: WebGL2RenderingContext, program: WebGLProgram, width: number, height: number) => {
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -371,13 +384,14 @@ const drawRays2D = (
       textureY += textureYStep;
     }
 
-    // draw floors
+    // draw floors and ceilings
     for (let y = lineOffset + lineHeight; y < 320; y++) {
+      // floors
       const dy = y - 320 / 2;
       const textureX = player.position.x / 2 + (Math.cos(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
       const textureY = player.position.y / 2 - (Math.sin(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
-      const mp = mapF[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
-      const textureColor =
+      let mp = mapF[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
+      let textureColor =
         textures[mp][
           (Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))
         ] * 0.7;
@@ -389,6 +403,25 @@ const drawRays2D = (
           ...canvasToClipSpace(width, height, r * 8 + 530, y + 8),
           ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y + 8),
           ...canvasToClipSpace(width, height, r * 8 + 530 + 8, y),
+        ]),
+        gl.STATIC_DRAW,
+      );
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+
+      // ceilings
+      mp = mapC[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
+      textureColor =
+        textures[mp][
+          (Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))
+        ] * 0.7;
+      gl.uniform4fv(colorLocation, [textureColor, textureColor, textureColor, 1]);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+          ...canvasToClipSpace(width, height, r * 8 + 530, 320 - y),
+          ...canvasToClipSpace(width, height, r * 8 + 530, 320 - y + 8),
+          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, 320 - y + 8),
+          ...canvasToClipSpace(width, height, r * 8 + 530 + 8, 320 - y),
         ]),
         gl.STATIC_DRAW,
       );
