@@ -1,7 +1,7 @@
 import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
 import { toClipSpace } from './utils/toClipSpace';
-import { parsePPMP6 } from './utils/parsePPM';
+import parsePPM from './utils/parsePPM';
 import { Player } from './player';
 
 import dark_stone_9 from './assets/textures/dark_stone_9.ppm';
@@ -11,7 +11,7 @@ import toxic_3 from './assets/textures/toxic_3.ppm';
 import door_1 from './assets/textures/door_1.ppm';
 
 const textures = [dark_stone_9, dark_brick_2, dark_corrupted_4, door_1, toxic_3].map((texture) => {
-  const { values } = parsePPMP6(texture);
+  const { values } = parsePPM(texture);
   return values;
 });
 
