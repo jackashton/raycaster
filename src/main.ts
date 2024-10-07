@@ -1,7 +1,7 @@
 import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
 import { toClipSpace } from './utils/toClipSpace';
-import { fetchPPMData, parsePPMP6 } from './utils/parsePPM';
+import { parsePPMP6 } from './utils/parsePPM';
 import { Player } from './player';
 
 import dark_stone_9 from './assets/textures/dark_stone_9.ppm';
@@ -10,14 +10,10 @@ import dark_corrupted_4 from './assets/textures/dark_corrupted_4.ppm';
 import toxic_3 from './assets/textures/toxic_3.ppm';
 import door_1 from './assets/textures/door_1.ppm';
 
-const textures = await Promise.all(
-  [dark_stone_9, dark_brick_2, dark_corrupted_4, door_1, toxic_3].map(async (texture) => {
-    const data = await fetchPPMData(texture);
-    if (!data) throw new Error(`Failed to parse ${texture}`);
-    const { values } = parsePPMP6(data);
-    return values;
-  }),
-);
+const textures = [dark_stone_9, dark_brick_2, dark_corrupted_4, door_1, toxic_3].map((texture) => {
+  const { values } = parsePPMP6(texture);
+  return values;
+});
 
 const vertexShaderSource = `
   attribute vec2 a_position;
