@@ -33,7 +33,7 @@ export const parsePPMP6 = (data: Uint8Array) => {
 };
 
 export const parsePPMP3 = (data: Uint8Array) => {
-  const header = new TextDecoder().decode(data.subarray(0, 20));
+  const header = new TextDecoder().decode(data);
   const headerLines = header.split(/\s+/);
   const { format, width, height } = parseHeaderAttributes(headerLines);
 
