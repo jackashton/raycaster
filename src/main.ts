@@ -1,8 +1,11 @@
+import { Player } from './player';
+import { InputController } from './inputController';
+import { CollisionManager } from './collisionManager';
+import { PlayerController } from './playerController';
 import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
 import { toClipSpace } from './utils/toClipSpace';
 import parsePPM from './utils/parsePPM';
-import { Player } from './player';
 
 import dark_stone_9 from './assets/textures/dark_stone_9.ppm';
 import dark_brick_2 from './assets/textures/dark_brick_2.ppm';
@@ -449,119 +452,9 @@ const drawRays2D = (
 };
 
 const player = new Player(new Vector2D(400, 150), [0.0, 1.0, 1.0, 1.0]);
-
-// key mappings
-enum Action {
-  MOVE_UP = 'MOVE_UP',
-  MOVE_DOWN = 'MOVE_DOWN',
-  MOVE_LEFT = 'MOVE_LEFT',
-  MOVE_RIGHT = 'MOVE_RIGHT',
-  STRAFE = 'STRAFE',
-  INTERACT = 'INTERACT',
-}
-
-// Default key mappings
-const defaultKeyMappings: Record<KeyboardEvent['key'], Action> = {
-  W: Action.MOVE_UP,
-  w: Action.MOVE_UP,
-  ArrowUp: Action.MOVE_UP,
-  S: Action.MOVE_DOWN,
-  s: Action.MOVE_DOWN,
-  ArrowDown: Action.MOVE_DOWN,
-  A: Action.MOVE_LEFT,
-  a: Action.MOVE_LEFT,
-  ArrowLeft: Action.MOVE_LEFT,
-  D: Action.MOVE_RIGHT,
-  d: Action.MOVE_RIGHT,
-  ArrowRight: Action.MOVE_RIGHT,
-  Shift: Action.STRAFE,
-  E: Action.INTERACT,
-  e: Action.INTERACT,
-};
-
-const keyMappings = { ...defaultKeyMappings };
-
-const keysPressed: Partial<Record<Action, boolean>> = {};
-
-const updatePosition = (player: Player) => {
-  const moveDirection = keysPressed[Action.MOVE_RIGHT] ? -1 : keysPressed[Action.MOVE_LEFT] ? 1 : 0;
-
-  let newplayerPosition = player.position;
-
-  if (moveDirection) {
-    if (keysPressed[Action.STRAFE]) {
-      const strafeAngle = player.angle + (Math.PI / 2) * moveDirection;
-      newplayerPosition = player.position.add(
-        new Vector2D(Math.cos(strafeAngle), -Math.sin(strafeAngle)).multiply(player.moveSpeed),
-      );
-    } else {
-      player.angle = normalizeAngle(player.angle + moveDirection * player.turnSpeed);
-    }
-  }
-  if (keysPressed[Action.MOVE_UP]) {
-    newplayerPosition = player.position.add(player.delta.multiply(player.moveSpeed));
-  }
-  if (keysPressed[Action.MOVE_DOWN]) {
-    newplayerPosition = player.position.subtract(player.delta.multiply(player.moveSpeed));
-  }
-
-  let offsetSize = 10;
-  const offset = new Vector2D((player.delta.x < 0 ? -1 : 1) * offsetSize, (player.delta.y < 0 ? -1 : 1) * offsetSize);
-
-  // player x collision
-  if (
-    mapW[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x + offset.x) / mapS)] ||
-    mapW[Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x - offset.x) / mapS)]
-  ) {
-    // don't move player in the x-axis
-    newplayerPosition.x = player.position.x;
-  }
-
-  // player y collision
-  if (
-    mapW[Math.floor((newplayerPosition.y + offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)] ||
-    mapW[Math.floor((newplayerPosition.y - offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS)]
-  ) {
-    // don't move player in the y-axis
-    newplayerPosition.y = player.position.y;
-  }
-
-  player.position = newplayerPosition;
-
-  // interaction collision is forward only
-  if (keysPressed[Action.INTERACT]) {
-    // reuse vars
-    offsetSize = 25;
-    offset.x = player.delta.x * offsetSize;
-    offset.y = player.delta.y * offsetSize;
-
-    // collision detection for forward offset
-    // player x collision
-    const forwardOffsetXmapWIndex =
-      Math.floor(player.position.y / mapS) * mapX + Math.floor((newplayerPosition.x + offset.x) / mapS);
-    if (mapW[forwardOffsetXmapWIndex] === 4) {
-      // make wall empty if collision and it is a door
-      mapW[forwardOffsetXmapWIndex] = 0;
-    }
-
-    // player y collision
-    const forwardOffsetYmapWIndex =
-      Math.floor((newplayerPosition.y + offset.y) / mapS) * mapX + Math.floor(player.position.x / mapS);
-    if (mapW[forwardOffsetYmapWIndex] === 4) {
-      mapW[forwardOffsetYmapWIndex] = 0;
-    }
-  }
-};
-
-const handleKeyboardEvent = ({ key, shiftKey }: KeyboardEvent, isPressed: boolean) => {
-  const action = keyMappings[key];
-  if (action) keysPressed[action] = isPressed;
-  keysPressed[Action.STRAFE] = shiftKey;
-};
-
-window.addEventListener('keydown', (event: KeyboardEvent) => handleKeyboardEvent(event, true));
-
-window.addEventListener('keyup', (event: KeyboardEvent) => handleKeyboardEvent(event, false));
+const inputController = new InputController();
+const collisionManager = new CollisionManager(mapW, mapX, mapY, mapS);
+const playerController = new PlayerController(player, inputController, collisionManager);
 
 let gl: WebGL2RenderingContext;
 let program: WebGLProgram;
@@ -571,7 +464,7 @@ const display = () => {
   if (!gl) return;
   gl.clearColor(0.3, 0.3, 0.3, 1.0); // background color
   gl.clear(gl.COLOR_BUFFER_BIT);
-  updatePosition(player);
+  playerController.update();
   drawMap2D(gl, program, canvas.width, canvas.height);
   drawRays2D(gl, program, player, canvas.width, canvas.height);
   drawPlayer2D(gl, program, player, canvas.width, canvas.height, true);
