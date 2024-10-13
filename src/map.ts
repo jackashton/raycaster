@@ -7,10 +7,12 @@ import { toClipSpace } from './utils/toClipSpace';
 
 export class Map implements Component {
   constructor(
-    public mapData: number[],
-    public mapWidth: number,
-    public mapHeight: number,
-    public mapScale: number,
+    public mapW: number[],
+    public mapF: number[],
+    public mapC: number[],
+    public mapX: number,
+    public mapY: number,
+    public mapS: number,
   ) {}
 
   update(deltaTime: number) {

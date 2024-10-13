@@ -1,3 +1,4 @@
+import { RenderContext } from './renderContext';
 import { Player } from './player';
 import { Map } from './map';
 import { Vector2D } from './utils/vector';
@@ -9,7 +10,6 @@ import dark_brick_2 from './assets/textures/dark_brick_2.ppm';
 import dark_corrupted_4 from './assets/textures/dark_corrupted_4.ppm';
 import toxic_3 from './assets/textures/toxic_3.ppm';
 import door_1 from './assets/textures/door_1.ppm';
-import { RenderContext } from './renderContext';
 
 const textures = [dark_stone_9, dark_brick_2, dark_corrupted_4, door_1, toxic_3].map((texture) => {
   const { values } = parsePPM(texture);
@@ -110,51 +110,11 @@ const mapC = [
 
 const textureSize = 32;
 
-const drawPlayer2D = (
-  gl: WebGL2RenderingContext,
-  program: WebGLProgram,
-  { position, delta, color }: Player,
-  width: number,
-  height: number,
-  showDirection = false,
-) => {
-  const positionBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array(toClipSpace(width, height, player.position.x, player.position.y)),
-    gl.STATIC_DRAW,
-  );
-
-  const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
-  gl.enableVertexAttribArray(positionAttributeLocation);
-  gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-
-  const colorLocation = gl.getUniformLocation(program, 'u_color');
-  gl.uniform4fv(colorLocation, color);
-
-  gl.drawArrays(gl.POINTS, 0, 1);
-
-  if (showDirection) {
-    // draw player direction line
-    const end = position.add(delta.multiply(20));
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([
-        ...toClipSpace(width, height, position.x, position.y),
-        ...toClipSpace(width, height, end.x, end.y),
-      ]),
-      gl.STATIC_DRAW,
-    );
-    gl.drawArrays(gl.LINES, 0, 2);
-  }
-};
-
 const rayAngleDelta = (2 * Math.PI) / 360;
 const fov = 60;
 
 const player = new Player(new Vector2D(400, 150), [0.0, 1.0, 1.0, 1.0]);
-const map = new Map(mapW, mapX, mapY, mapS);
+const map = new Map(mapW, mapF, mapC, mapX, mapY, mapS);
 // const collisionManager = new CollisionManager(mapW, mapX, mapY, mapS);
 
 const components = [player, map];
@@ -198,7 +158,6 @@ const display = (deltaTime: number) => {
     component.update(deltaTime);
     component.render(renderContext, player);
   });
-  drawPlayer2D(gl, program, player, canvas.width, canvas.height, true);
   requestAnimationFrame(display);
 };
 
