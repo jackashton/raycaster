@@ -3,6 +3,7 @@ import { Component } from './types';
 import { RenderContext } from './renderContext';
 import { Action, InputController } from './inputController';
 import normalizeAngle from './utils/normalizeAngle';
+import {toClipSpace} from "./utils/toClipSpace";
 
 export class Player implements Component {
   position: Vector2D;
@@ -85,5 +86,46 @@ export class Player implements Component {
 
   render(context: RenderContext) {
     const { gl, program, width, height } = context;
+    this.render2D(gl, program, width, height, true);
+  }
+
+  // Basic 2D render logic for the player (top-down view)
+  private render2D(
+    gl: WebGL2RenderingContext,
+    program: WebGLProgram,
+    width: number,
+    height: number,
+    showDirection = false,
+  ) {
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(toClipSpace(width, height, this.position.x, this.position.y)),
+      gl.STATIC_DRAW,
+    );
+
+    const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(positionAttributeLocation);
+    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+    const colorLocation = gl.getUniformLocation(program, 'u_color');
+    gl.uniform4fv(colorLocation, this.color);
+
+    gl.drawArrays(gl.POINTS, 0, 1);
+
+    if (showDirection) {
+      // draw player direction line
+      const end = this.position.add(this.delta.multiply(20));
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+          ...toClipSpace(width, height, this.position.x, this.position.y),
+          ...toClipSpace(width, height, end.x, end.y),
+        ]),
+        gl.STATIC_DRAW,
+      );
+      gl.drawArrays(gl.LINES, 0, 2);
+    }
   }
 }
