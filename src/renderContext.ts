@@ -4,5 +4,6 @@ export class RenderContext {
     public program: WebGLProgram,
     public width: number,
     public height: number,
+    public screenHeight: number,
   ) {}
 }

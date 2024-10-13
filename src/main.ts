@@ -63,11 +63,9 @@ const createProgram = (
   return null;
 };
 
-const screenHeight = 320;
 const mapX = 8;
 const mapY = 8;
 const mapS = 64;
-const gap = 1;
 
 /* eslint-disable */
 const mapW = [
@@ -108,16 +106,11 @@ const mapC = [
 ];
 /* eslint-enable */
 
-const textureSize = 32;
-
-const rayAngleDelta = (2 * Math.PI) / 360;
-const fov = 60;
-
 const player = new Player(new Vector2D(400, 150), [0.0, 1.0, 1.0, 1.0]);
-const map = new Map(mapW, mapF, mapC, mapX, mapY, mapS);
+const map = new Map(mapW, mapF, mapC, mapX, mapY, mapS, textures);
 // const collisionManager = new CollisionManager(mapW, mapX, mapY, mapS);
 
-const components = [player, map];
+const components = [map, player];
 
 let gl: WebGL2RenderingContext;
 let program: WebGLProgram;
@@ -147,7 +140,7 @@ const init = () => {
 
   gl.useProgram(program);
 
-  renderContext = new RenderContext(gl, program, canvas.width, canvas.height);
+  renderContext = new RenderContext(gl, program, canvas.width, canvas.height, 320);
 };
 
 const display = (deltaTime: number) => {

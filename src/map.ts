@@ -5,6 +5,14 @@ import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
 import { toClipSpace } from './utils/toClipSpace';
 
+// TODO move constants somewhere more appropriate
+const gap = 1;
+
+const rayAngleDelta = (2 * Math.PI) / 360;
+const fov = 60;
+
+const textureSize = 32;
+
 export class Map implements Component {
   constructor(
     public mapW: number[],
@@ -13,6 +21,7 @@ export class Map implements Component {
     public mapX: number,
     public mapY: number,
     public mapS: number,
+    public textures: Uint8Array[],
   ) {}
 
   update(deltaTime: number) {
@@ -20,10 +29,10 @@ export class Map implements Component {
   }
 
   render(context: RenderContext, player?: Player) {
-    const { gl, program, width, height } = context;
+    const { gl, program, width, height, screenHeight } = context;
     this.render2D(gl, program, width, height);
     if (!player) return;
-    this.render3D(gl, program, player, width, height);
+    this.render3D(gl, program, player, width, height, screenHeight);
   }
 
   // Basic 2D render logic for the map (top-down view)
@@ -37,21 +46,21 @@ export class Map implements Component {
 
     const colorLocation = gl.getUniformLocation(program, 'u_color');
 
-    for (let y = 0; y < mapY; y++) {
-      for (let x = 0; x < mapX; x++) {
+    for (let y = 0; y < this.mapY; y++) {
+      for (let x = 0; x < this.mapX; x++) {
         let color = [0.0, 0.0, 0.0, 1.0];
-        if (mapW[y * mapX + x]) {
+        if (this.mapW[y * this.mapX + x]) {
           color = [1.0, 1.0, 1.0, 1.0];
         }
 
-        const xo = x * mapS;
-        const yo = y * mapS;
+        const xo = x * this.mapS;
+        const yo = y * this.mapS;
 
         const vertices = [
           ...toClipSpace(width, height, xo + gap, yo + gap),
-          ...toClipSpace(width, height, xo + gap, yo + mapS - gap),
-          ...toClipSpace(width, height, xo + mapS - gap, yo + mapS - gap),
-          ...toClipSpace(width, height, xo + mapS - gap, yo + gap),
+          ...toClipSpace(width, height, xo + gap, yo + this.mapS - gap),
+          ...toClipSpace(width, height, xo + this.mapS - gap, yo + this.mapS - gap),
+          ...toClipSpace(width, height, xo + this.mapS - gap, yo + gap),
         ];
 
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
@@ -62,7 +71,7 @@ export class Map implements Component {
   }
 
   // Perform raycasting or projection from the player's perspective
-  private render3D(gl: WebGL2RenderingContext, program: WebGLProgram, player: Player, width: number, height: number) {
+  private render3D(gl: WebGL2RenderingContext, program: WebGLProgram, player: Player, width: number, height: number, screenHeight: number) {
     const positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
@@ -101,15 +110,15 @@ export class Map implements Component {
       // Horizontal line checks
       if (rayAngle < Math.PI) {
         // looking up
-        rayPosition.y = Math.floor(player.position.y / mapS) * mapS - 0.0001;
+        rayPosition.y = Math.floor(player.position.y / this.mapS) * this.mapS - 0.0001;
         rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
-        offset.y = -mapS;
+        offset.y = -this.mapS;
         offset.x = -offset.y * aTan;
       } else if (rayAngle > Math.PI) {
         // looking down
-        rayPosition.y = Math.floor(player.position.y / mapS) * mapS + mapS;
+        rayPosition.y = Math.floor(player.position.y / this.mapS) * this.mapS + this.mapS;
         rayPosition.x = (player.position.y - rayPosition.y) * aTan + player.position.x;
-        offset.y = mapS;
+        offset.y = this.mapS;
         offset.x = -offset.y * aTan;
       } else {
         // looking straight left or right
@@ -120,15 +129,15 @@ export class Map implements Component {
 
       // Perform raycasting for horizontal lines
       while (dof < maxDof) {
-        const mx = Math.floor(rayPosition.x / mapS);
-        const my = Math.floor(rayPosition.y / mapS);
-        const mp = my * mapX + mx;
+        const mx = Math.floor(rayPosition.x / this.mapS);
+        const my = Math.floor(rayPosition.y / this.mapS);
+        const mp = my * this.mapX + mx;
         // hit
-        if (mp < mapX * mapY && mapW[mp] > 0) {
+        if (mp < this.mapX * this.mapY && this.mapW[mp] > 0) {
           horizontalRayPosition.x = rayPosition.x;
           horizontalRayPosition.y = rayPosition.y;
           distanceHorizontal = player.position.distance(horizontalRayPosition);
-          horizontalMapTextureIndex = mapW[mp] - 1;
+          horizontalMapTextureIndex = this.mapW[mp] - 1;
           dof = maxDof;
         } else {
           // go to next line
@@ -142,9 +151,9 @@ export class Map implements Component {
       // Vertical line checks
       if (rayAngle < Math.PI / 2 || rayAngle > (3 * Math.PI) / 2) {
         // looking right
-        rayPosition.x = Math.floor(player.position.x / mapS) * mapS + mapS;
+        rayPosition.x = Math.floor(player.position.x / this.mapS) * this.mapS + this.mapS;
         rayPosition.y = (player.position.x - rayPosition.x) * tan + player.position.y;
-        offset.x = mapS;
+        offset.x = this.mapS;
         offset.y = -offset.x * tan;
       } else if (rayAngle === Math.PI / 2 || rayAngle === (3 * Math.PI) / 2) {
         // looking straight up or down
@@ -153,23 +162,23 @@ export class Map implements Component {
         dof = maxDof;
       } else {
         // looking left
-        rayPosition.x = Math.floor(player.position.x / mapS) * mapS - 0.0001;
+        rayPosition.x = Math.floor(player.position.x / this.mapS) * this.mapS - 0.0001;
         rayPosition.y = (player.position.x - rayPosition.x) * tan + player.position.y;
-        offset.x = -mapS;
+        offset.x = -this.mapS;
         offset.y = -offset.x * tan;
       }
 
       // Perform raycasting for vertical lines
       while (dof < maxDof) {
-        const mx = Math.floor(rayPosition.x / mapS);
-        const my = Math.floor(rayPosition.y / mapS);
-        const mp = my * mapX + mx;
+        const mx = Math.floor(rayPosition.x / this.mapS);
+        const my = Math.floor(rayPosition.y / this.mapS);
+        const mp = my * this.mapX + mx;
         // hit
-        if (mp < mapX * mapY && mapW[mp] > 0) {
+        if (mp < this.mapX * this.mapY && this.mapW[mp] > 0) {
           verticalRayPosition.x = rayPosition.x;
           verticalRayPosition.y = rayPosition.y;
           distanceVertical = player.position.distance(verticalRayPosition);
-          verticalMapTextureIndex = mapW[mp] - 1;
+          verticalMapTextureIndex = this.mapW[mp] - 1;
           dof = maxDof;
         } else {
           // go to next line
@@ -216,7 +225,7 @@ export class Map implements Component {
       const rayAngleFixed = Math.cos(normalizeAngle(player.angle - rayAngle));
       if (distance === distanceHorizontal) distance = distance * rayAngleFixed;
 
-      let lineHeight = (mapS * screenHeight) / distance;
+      let lineHeight = (this.mapS * screenHeight) / distance;
       const textureYStep = textureSize / lineHeight;
       let textureYOffset = 0;
 
@@ -246,9 +255,9 @@ export class Map implements Component {
 
       for (let y = 0; y < lineHeight; y++) {
         const pixelIndex = (Math.trunc(textureY) * textureSize + Math.trunc(textureX)) * 3;
-        const red = textures[horizontalMapTextureIndex][pixelIndex] / 255;
-        const green = textures[horizontalMapTextureIndex][pixelIndex + 1] / 255;
-        const blue = textures[horizontalMapTextureIndex][pixelIndex + 2] / 255;
+        const red = this.textures[horizontalMapTextureIndex][pixelIndex] / 255;
+        const green = this.textures[horizontalMapTextureIndex][pixelIndex + 1] / 255;
+        const blue = this.textures[horizontalMapTextureIndex][pixelIndex + 2] / 255;
         gl.uniform4fv(colorLocation, [red * shade, green * shade, blue * shade, 1.0]);
         gl.bufferData(
           gl.ARRAY_BUFFER,
@@ -270,13 +279,13 @@ export class Map implements Component {
         const dy = y - screenHeight / 2;
         const textureX = player.position.x / 2 + (Math.cos(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
         const textureY = player.position.y / 2 - (Math.sin(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
-        let mp = mapF[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
+        let mp = this.mapF[Math.floor(textureY / textureSize) * this.mapX + Math.floor(textureX / textureSize)] - 1;
         let pixelIndex =
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
           mp * 3;
-        let red = textures[mp][pixelIndex] / 255;
-        let green = textures[mp][pixelIndex + 1] / 255;
-        let blue = textures[mp][pixelIndex + 2] / 255;
+        let red = this.textures[mp][pixelIndex] / 255;
+        let green = this.textures[mp][pixelIndex + 1] / 255;
+        let blue = this.textures[mp][pixelIndex + 2] / 255;
         gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
         gl.bufferData(
           gl.ARRAY_BUFFER,
@@ -291,13 +300,13 @@ export class Map implements Component {
         gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 
         // ceilings
-        mp = mapC[Math.floor(textureY / textureSize) * mapX + Math.floor(textureX / textureSize)] - 1;
+        mp = this.mapC[Math.floor(textureY / textureSize) * this.mapX + Math.floor(textureX / textureSize)] - 1;
         pixelIndex =
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
           mp * 3;
-        red = textures[mp][pixelIndex] / 255;
-        green = textures[mp][pixelIndex + 1] / 255;
-        blue = textures[mp][pixelIndex + 2] / 255;
+        red = this.textures[mp][pixelIndex] / 255;
+        green = this.textures[mp][pixelIndex + 1] / 255;
+        blue = this.textures[mp][pixelIndex + 2] / 255;
         gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
         gl.uniform4fv(colorLocation, [red, green, blue, 1]);
         gl.bufferData(
@@ -319,9 +328,9 @@ export class Map implements Component {
   }
 
   isColliding(position: Vector2D): boolean {
-    const tileX = Math.floor(position.x / this.mapScale);
-    const tileY = Math.floor(position.y / this.mapScale);
-    const tileIndex = tileY * this.mapWidth + tileX;
-    return this.mapData[tileIndex] !== 0;
+    const tileX = Math.floor(position.x / this.mapS);
+    const tileY = Math.floor(position.y / this.mapS);
+    const tileIndex = tileY * this.mapX + tileX;
+    return this.mapW[tileIndex] !== 0;
   }
 }
