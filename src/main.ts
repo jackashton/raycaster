@@ -1,6 +1,7 @@
-import { RenderContext } from './renderContext';
 import { Player } from './player';
 import { Map } from './map';
+import { FirstPersonRenderer, TopDownRenderer } from './renderer';
+import { Scene } from './types';
 import { Vector2D } from './utils/vector';
 import parsePPM from './utils/parsePPM';
 
@@ -105,13 +106,17 @@ const mapC = [
 ];
 /* eslint-enable */
 
-const player = new Player(new Vector2D(400, 150));
-const map = new Map(mapW, mapF, mapC, mapX, mapY, mapS, textures);
+// TODO reimplement
 // const collisionManager = new CollisionManager(mapW, mapX, mapY, mapS);
 
-const components = [map, player];
+const scene = new Scene();
+scene.addObject(new Player(new Vector2D(400, 150)));
+scene.addObject(new Map(mapW, mapF, mapC, mapX, mapY, mapS, textures));
 
-let renderContext: RenderContext;
+let topDownRenderer: TopDownRenderer;
+let firstPersonRenderer: FirstPersonRenderer;
+
+let gl: WebGL2RenderingContext;
 
 const init = () => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -122,7 +127,7 @@ const init = () => {
     return;
   }
 
-  const gl = webGL2RenderingContext;
+  gl = webGL2RenderingContext;
 
   const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
   const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
@@ -134,20 +139,22 @@ const init = () => {
 
   gl.useProgram(webGLProgram);
 
-  renderContext = new RenderContext(gl, webGLProgram, canvas.width, canvas.height, 320);
+  topDownRenderer = new TopDownRenderer(gl, webGLProgram, canvas.width, canvas.height, 320);
+  firstPersonRenderer = new FirstPersonRenderer(gl, webGLProgram, canvas.width, canvas.height, 320);
 };
 
 const gameLoop = (deltaTime: number) => {
-  if (!renderContext) return;
-
   // draw background color
-  renderContext.gl.clearColor(0.3, 0.3, 0.3, 1.0);
-  renderContext.gl.clear(renderContext.gl.COLOR_BUFFER_BIT);
+  gl.clearColor(0.3, 0.3, 0.3, 1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
 
-  components.forEach((component) => {
-    component.update(deltaTime);
-    component.render(renderContext, player);
+  // TODO combine updates with rendering maybe since we need to loop over all objects in the scene
+  scene.objects.forEach((obj) => {
+    obj.update?.(deltaTime);
   });
+
+  topDownRenderer.render(scene);
+  firstPersonRenderer.render(scene);
 
   requestAnimationFrame(gameLoop);
 };

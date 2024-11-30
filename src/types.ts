@@ -1,7 +1,11 @@
-import { RenderContext } from './renderContext';
-import { Player } from './player';
+export interface GameObject {
+  update?: (deltatTime: number) => void;
+}
 
-export interface Component {
-  update: (deltatTime: number) => void;
-  render: (context: RenderContext, player?: Player) => void;
+export class Scene {
+  objects: GameObject[] = [];
+
+  addObject(obj: GameObject): void {
+    this.objects.push(obj);
+  }
 }
