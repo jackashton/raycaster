@@ -3,20 +3,18 @@ import { Component } from './types';
 import { RenderContext } from './renderContext';
 import { Action, InputController } from './inputController';
 import normalizeAngle from './utils/normalizeAngle';
-import {toClipSpace} from "./utils/toClipSpace";
+import { toClipSpace } from './utils/toClipSpace';
 
 export class Player implements Component {
   position: Vector2D;
-  color: [number, number, number, number];
   private _angle: number;
   delta: Vector2D;
   moveSpeed: number;
   turnSpeed: number;
   input: InputController = new InputController();
 
-  constructor(position: Vector2D, color: [number, number, number, number]) {
+  constructor(position: Vector2D) {
     this.position = position;
-    this.color = color;
     this._angle = Math.PI / 2;
     this.delta = this.updateDelta();
     this.moveSpeed = 5;
@@ -86,7 +84,7 @@ export class Player implements Component {
 
   render(context: RenderContext) {
     const { gl, program, width, height } = context;
-    this.render2D(gl, program, width, height, true);
+    this.render2D(gl, program, width, height, [0.0, 1.0, 1.0, 1.0], true);
   }
 
   // Basic 2D render logic for the player (top-down view)
@@ -95,6 +93,7 @@ export class Player implements Component {
     program: WebGLProgram,
     width: number,
     height: number,
+    color: [number, number, number, number],
     showDirection = false,
   ) {
     const positionBuffer = gl.createBuffer();
@@ -110,7 +109,7 @@ export class Player implements Component {
     gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
     const colorLocation = gl.getUniformLocation(program, 'u_color');
-    gl.uniform4fv(colorLocation, this.color);
+    gl.uniform4fv(colorLocation, color);
 
     gl.drawArrays(gl.POINTS, 0, 1);
 

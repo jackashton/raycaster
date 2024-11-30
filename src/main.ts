@@ -2,7 +2,6 @@ import { RenderContext } from './renderContext';
 import { Player } from './player';
 import { Map } from './map';
 import { Vector2D } from './utils/vector';
-import { toClipSpace } from './utils/toClipSpace';
 import parsePPM from './utils/parsePPM';
 
 import dark_stone_9 from './assets/textures/dark_stone_9.ppm';
@@ -106,20 +105,16 @@ const mapC = [
 ];
 /* eslint-enable */
 
-const player = new Player(new Vector2D(400, 150), [0.0, 1.0, 1.0, 1.0]);
+const player = new Player(new Vector2D(400, 150));
 const map = new Map(mapW, mapF, mapC, mapX, mapY, mapS, textures);
 // const collisionManager = new CollisionManager(mapW, mapX, mapY, mapS);
 
 const components = [map, player];
 
-let gl: WebGL2RenderingContext;
-let program: WebGLProgram;
-let canvas: HTMLCanvasElement;
-
 let renderContext: RenderContext;
 
 const init = () => {
-  canvas = document.getElementById('canvas') as HTMLCanvasElement;
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
   const webGL2RenderingContext = canvas.getContext('webgl2');
 
   if (!webGL2RenderingContext) {
@@ -127,7 +122,7 @@ const init = () => {
     return;
   }
 
-  gl = webGL2RenderingContext;
+  const gl = webGL2RenderingContext;
 
   const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
   const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
@@ -136,27 +131,30 @@ const init = () => {
 
   const webGLProgram = createProgram(gl, vertexShader, fragmentShader);
   if (!webGLProgram) return;
-  program = webGLProgram;
 
-  gl.useProgram(program);
+  gl.useProgram(webGLProgram);
 
-  renderContext = new RenderContext(gl, program, canvas.width, canvas.height, 320);
+  renderContext = new RenderContext(gl, webGLProgram, canvas.width, canvas.height, 320);
 };
 
-const display = (deltaTime: number) => {
+const gameLoop = (deltaTime: number) => {
   if (!renderContext) return;
-  gl.clearColor(0.3, 0.3, 0.3, 1.0); // background color
-  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  // draw background color
+  renderContext.gl.clearColor(0.3, 0.3, 0.3, 1.0);
+  renderContext.gl.clear(renderContext.gl.COLOR_BUFFER_BIT);
+
   components.forEach((component) => {
     component.update(deltaTime);
     component.render(renderContext, player);
   });
-  requestAnimationFrame(display);
+
+  requestAnimationFrame(gameLoop);
 };
 
 const main = () => {
   init();
-  display(0);
+  gameLoop(0);
 };
 
 main();
