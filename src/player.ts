@@ -1,11 +1,61 @@
+import { GameObject } from './types';
 import { Vector2D } from './utils/vector';
-import { Component } from './types';
-import { RenderContext } from './renderContext';
-import { Action, InputController } from './inputController';
 import normalizeAngle from './utils/normalizeAngle';
-import { toClipSpace } from './utils/toClipSpace';
 
-export class Player implements Component {
+enum Action {
+  MOVE_UP = 'MOVE_UP',
+  MOVE_DOWN = 'MOVE_DOWN',
+  MOVE_LEFT = 'MOVE_LEFT',
+  MOVE_RIGHT = 'MOVE_RIGHT',
+  STRAFE = 'STRAFE',
+  INTERACT = 'INTERACT',
+}
+
+class InputController {
+  private keyMappings: Record<string, Action>;
+  private keysPressed: Partial<Record<Action, boolean>> = {};
+
+  constructor(customMappings?: Record<string, Action>) {
+    // Default key mappings
+    this.keyMappings = customMappings || {
+      W: Action.MOVE_UP,
+      w: Action.MOVE_UP,
+      ArrowUp: Action.MOVE_UP,
+      S: Action.MOVE_DOWN,
+      s: Action.MOVE_DOWN,
+      ArrowDown: Action.MOVE_DOWN,
+      A: Action.MOVE_LEFT,
+      a: Action.MOVE_LEFT,
+      ArrowLeft: Action.MOVE_LEFT,
+      D: Action.MOVE_RIGHT,
+      d: Action.MOVE_RIGHT,
+      ArrowRight: Action.MOVE_RIGHT,
+      Shift: Action.STRAFE,
+      E: Action.INTERACT,
+      e: Action.INTERACT,
+    };
+
+    // Bind event listeners
+    window.addEventListener('keydown', this.handleKeyboardEvent.bind(this, true));
+    window.addEventListener('keyup', this.handleKeyboardEvent.bind(this, false));
+  }
+
+  private handleKeyboardEvent(isPressed: boolean, event: KeyboardEvent) {
+    const action = this.keyMappings[event.key];
+    if (action) {
+      this.keysPressed[action] = isPressed;
+    }
+
+    // Handle strafing with Shift key
+    this.keysPressed[Action.STRAFE] = event.shiftKey;
+  }
+
+  isActionPressed(action: Action): boolean {
+    return !!this.keysPressed[action];
+  }
+}
+
+export class Player implements GameObject {
   position: Vector2D;
   private _angle: number;
   delta: Vector2D;
@@ -80,51 +130,5 @@ export class Player implements Component {
     // if (this.input.isActionPressed(Action.INTERACT)) {
     //   this.collisionManager.handleInteraction(this.position, this.delta, 25);
     // }
-  }
-
-  render(context: RenderContext) {
-    const { gl, program, width, height } = context;
-    this.render2D(gl, program, width, height, [0.0, 1.0, 1.0, 1.0], true);
-  }
-
-  // Basic 2D render logic for the player (top-down view)
-  private render2D(
-    gl: WebGL2RenderingContext,
-    program: WebGLProgram,
-    width: number,
-    height: number,
-    color: [number, number, number, number],
-    showDirection = false,
-  ) {
-    const positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(toClipSpace(width, height, this.position.x, this.position.y)),
-      gl.STATIC_DRAW,
-    );
-
-    const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
-    gl.enableVertexAttribArray(positionAttributeLocation);
-    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-
-    const colorLocation = gl.getUniformLocation(program, 'u_color');
-    gl.uniform4fv(colorLocation, color);
-
-    gl.drawArrays(gl.POINTS, 0, 1);
-
-    if (showDirection) {
-      // draw player direction line
-      const end = this.position.add(this.delta.multiply(20));
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([
-          ...toClipSpace(width, height, this.position.x, this.position.y),
-          ...toClipSpace(width, height, end.x, end.y),
-        ]),
-        gl.STATIC_DRAW,
-      );
-      gl.drawArrays(gl.LINES, 0, 2);
-    }
   }
 }
