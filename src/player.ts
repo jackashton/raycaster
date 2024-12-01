@@ -1,4 +1,4 @@
-import { GameObject } from './types';
+import { BoundingBox, Collidable, GameObject, MapCollisionManager } from './types';
 import { Vector2D } from './utils/vector';
 import normalizeAngle from './utils/normalizeAngle';
 
@@ -55,13 +55,14 @@ class InputController {
   }
 }
 
-export class Player implements GameObject {
+export class Player implements GameObject, Collidable {
   position: Vector2D;
   private _angle: number;
   delta: Vector2D;
   moveSpeed: number;
   turnSpeed: number;
   input: InputController = new InputController();
+  mapCollisionManager: MapCollisionManager;
 
   constructor(position: Vector2D) {
     this.position = position;
@@ -131,4 +132,17 @@ export class Player implements GameObject {
     //   this.collisionManager.handleInteraction(this.position, this.delta, 25);
     // }
   }
+
+  getBounds(): BoundingBox {
+    return {
+      x: this.position.x,
+      y: this.position.y,
+      width: 0,
+      height: 0,
+      intersects: () => false,
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onCollision(other: Collidable) {}
 }
