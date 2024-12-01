@@ -1,5 +1,4 @@
-import { GameObject } from './types';
-import { Vector2D } from './utils/vector';
+import { GameObject, MapCollisionManager, Collidable } from './types';
 
 export class Map implements GameObject {
   constructor(
@@ -11,11 +10,22 @@ export class Map implements GameObject {
     public mapS: number,
     public textures: Uint8Array[],
   ) {}
+}
 
-  isColliding(position: Vector2D): boolean {
-    const tileX = Math.floor(position.x / this.mapS);
-    const tileY = Math.floor(position.y / this.mapS);
-    const tileIndex = tileY * this.mapX + tileX;
-    return this.mapW[tileIndex] !== 0;
+export class MapCollisionManagerImpl implements MapCollisionManager {
+  private map: Map;
+
+  constructor(map: Map) {
+    this.map = map;
+  }
+
+  checkCollision(obj: Collidable): boolean {
+    const bounds = obj.getBounds();
+
+    // TODO handle bounds size
+    const tileX = Math.floor(bounds.x / this.map.mapS);
+    const tileY = Math.floor(bounds.y / this.map.mapS);
+    const tileIndex = tileY * this.map.mapX + tileX;
+    return this.map.mapW[tileIndex] !== 0;
   }
 }
