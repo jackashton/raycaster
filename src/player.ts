@@ -1,6 +1,7 @@
-import { BoundingBox, Collidable, GameObject, MapCollisionManager } from './types';
+import { GameObject } from './types';
 import { Vector2D } from './utils/vector';
 import normalizeAngle from './utils/normalizeAngle';
+import { MapCollisionManager } from './map';
 
 enum Action {
   MOVE_UP = 'MOVE_UP',
@@ -55,7 +56,7 @@ class InputController {
   }
 }
 
-export class Player implements GameObject, Collidable {
+export class Player implements GameObject {
   position: Vector2D;
   private _angle: number;
   delta: Vector2D;
@@ -64,12 +65,13 @@ export class Player implements GameObject, Collidable {
   input: InputController = new InputController();
   mapCollisionManager: MapCollisionManager;
 
-  constructor(position: Vector2D) {
+  constructor(position: Vector2D, mapCollisionManager: MapCollisionManager) {
     this.position = position;
     this._angle = Math.PI / 2;
     this.delta = this.updateDelta();
     this.moveSpeed = 5;
     this.turnSpeed = Math.PI / 64;
+    this.mapCollisionManager = mapCollisionManager;
   }
 
   get angle(): number {
@@ -83,6 +85,34 @@ export class Player implements GameObject, Collidable {
 
   private updateDelta(): Vector2D {
     return new Vector2D(Math.cos(this._angle), -Math.sin(this._angle));
+  }
+
+  private getRelativeAngle(point: Vector2D): number {
+    // Vector from player to collision point
+    const dx = point.x - this.position.x;
+    const dy = point.y - this.position.y;
+
+    // Normalize the player's direction vector
+    const playerDirectionX = Math.cos(this.angle);
+    const playerDirectionY = Math.sin(this.angle);
+
+    // Calculate the dot product
+    const dotProduct = dx * playerDirectionX + dy * playerDirectionY;
+
+    // Calculate the magnitude of the vectors
+    const collisionMagnitude = Math.sqrt(dx * dx + dy * dy);
+    const playerDirectionMagnitude = Math.sqrt(
+      playerDirectionX * playerDirectionX + playerDirectionY * playerDirectionY,
+    );
+
+    // Calculate the angle in radians between the player's direction and the collision point
+    const angle = Math.acos(dotProduct / (collisionMagnitude * playerDirectionMagnitude));
+
+    // Determine the sign of the angle (clockwise or counterclockwise)
+    const crossProduct = dx * playerDirectionY - dy * playerDirectionX;
+    const signedAngle = crossProduct < 0 ? -angle : angle;
+
+    return signedAngle;
   }
 
   update() {
@@ -107,42 +137,34 @@ export class Player implements GameObject, Collidable {
 
     // Forward/backward movement
     if (this.input.isActionPressed(Action.MOVE_UP)) {
-      newPlayerPosition = this.position.add(this.delta.multiply(this.moveSpeed));
+      newPlayerPosition = newPlayerPosition.add(this.delta.multiply(this.moveSpeed));
     }
     if (this.input.isActionPressed(Action.MOVE_DOWN)) {
-      newPlayerPosition = this.position.subtract(this.delta.multiply(this.moveSpeed));
+      newPlayerPosition = newPlayerPosition.subtract(this.delta.multiply(this.moveSpeed));
     }
 
-    // TODO remove once collision is added back
+    const collision = this.mapCollisionManager.checkCollision(newPlayerPosition, this.delta, 10);
+
+    if (collision.xCollision) {
+      newPlayerPosition.x = this.position.x;
+    }
+
+    if (collision.yCollision) {
+      newPlayerPosition.y = this.position.y;
+    }
+
+    // Handle interaction collision (for doors)
+    if (this.input.isActionPressed(Action.INTERACT)) {
+      const { xCollision, yCollision } = this.mapCollisionManager.checkCollision(newPlayerPosition, this.delta, 25);
+      if (xCollision?.forwardTile === 4) {
+        this.mapCollisionManager.map.mapW[xCollision.forwardTileIndex] = 0;
+      }
+
+      if (yCollision?.forwardTile === 4) {
+        this.mapCollisionManager.map.mapW[yCollision.forwardTileIndex] = 0;
+      }
+    }
+
     this.position = newPlayerPosition;
-
-    // Collision detection
-    // const collision = this.collisionManager.isColliding(newPlayerPosition, this.delta, 10);
-    //
-    // if (!collision.xCollision) {
-    //   this.position.x = newPlayerPosition.x;
-    // }
-    //
-    // if (!collision.yCollision) {
-    //   this.position.y = newPlayerPosition.y;
-    // }
-    //
-    // // Handle interaction collision (for doors)
-    // if (this.input.isActionPressed(Action.INTERACT)) {
-    //   this.collisionManager.handleInteraction(this.position, this.delta, 25);
-    // }
   }
-
-  getBounds(): BoundingBox {
-    return {
-      x: this.position.x,
-      y: this.position.y,
-      width: 0,
-      height: 0,
-      intersects: () => false,
-    };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onCollision(other: Collidable) {}
 }
