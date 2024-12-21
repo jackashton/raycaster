@@ -1,4 +1,5 @@
-import { GameObject, MapCollisionManager, Collidable } from './types';
+import { GameObject } from './types';
+import { Vector2D } from './utils/vector';
 
 export class Map implements GameObject {
   constructor(
@@ -9,23 +10,87 @@ export class Map implements GameObject {
     public mapY: number,
     public mapS: number,
     public textures: Uint8Array[],
+    public tileSize: number,
   ) {}
+
+  update() {}
 }
 
-export class MapCollisionManagerImpl implements MapCollisionManager {
-  private map: Map;
+export class MapCollisionManager {
+  public map: Map;
 
   constructor(map: Map) {
     this.map = map;
   }
 
-  checkCollision(obj: Collidable): boolean {
-    const bounds = obj.getBounds();
+  checkCollision(position: Vector2D, delta: Vector2D, offsetSize: number) {
+    const offset = new Vector2D((delta.x < 0 ? -1 : 1) * offsetSize, (delta.y < 0 ? -1 : 1) * offsetSize);
 
-    // TODO handle bounds size
-    const tileX = Math.floor(bounds.x / this.map.mapS);
-    const tileY = Math.floor(bounds.y / this.map.mapS);
-    const tileIndex = tileY * this.map.mapX + tileX;
-    return this.map.mapW[tileIndex] !== 0;
+    let xCollisionPoint: Vector2D | null = null;
+    let yCollisionPoint: Vector2D | null = null;
+
+
+    // Check collision in x-direction
+    const xForwardTileIndex =
+      Math.floor(position.y / this.map.mapS) * this.map.mapX + Math.floor((position.x + offset.x) / this.map.mapS);
+    const xBackwardTileIndex =
+      Math.floor(position.y / this.map.mapS) * this.map.mapX + Math.floor((position.x - offset.x) / this.map.mapS);
+
+    const xForwardTile = this.map.mapW[xForwardTileIndex];
+    const xBackwardTile = this.map.mapW[xBackwardTileIndex];
+
+    const xCollision = !!(xForwardTile || xBackwardTile);
+
+    // Find exact collision point for x-direction
+    if (xCollision) {
+      const collisionX =
+        delta.x > 0
+          ? Math.ceil(position.x / this.map.tileSize) * this.map.tileSize
+          : Math.floor(position.x / this.map.tileSize) * this.map.tileSize;
+
+      xCollisionPoint = new Vector2D(collisionX, position.y + delta.y);
+    }
+
+    // Check collision in y-direction
+    const yForwardTileIndex =
+      Math.floor((position.y + offset.y) / this.map.mapS) * this.map.mapX + Math.floor(position.x / this.map.mapS);
+    const yBackwardTileIndex =
+      Math.floor((position.y - offset.y) / this.map.mapS) * this.map.mapX + Math.floor(position.x / this.map.mapS);
+
+    const yForwardTile = this.map.mapW[yForwardTileIndex];
+    const yBackwardTile = this.map.mapW[yBackwardTileIndex];
+
+    const yCollision = !!(yForwardTile || yBackwardTile);
+
+    // Find exact collision point for y-direction
+    if (yCollision) {
+      const collisionY =
+        delta.y > 0
+          ? Math.ceil(position.y / this.map.tileSize) * this.map.tileSize
+          : Math.floor(position.y / this.map.tileSize) * this.map.tileSize;
+
+      yCollisionPoint = new Vector2D(position.x + delta.x, collisionY);
+    }
+
+    return {
+      xCollision: xCollision
+        ? {
+            forwardTileIndex: xForwardTileIndex,
+            forwardTile: xForwardTile,
+            backwardTileIndex: xBackwardTileIndex,
+            backwardTile: xBackwardTile,
+            collisionPoint: xCollisionPoint,
+          }
+        : null,
+      yCollision: yCollision
+        ? {
+            forwardTileIndex: yForwardTileIndex,
+            forwardTile: yForwardTile,
+            backwardTileIndex: yBackwardTileIndex,
+            backwardTile: yBackwardTile,
+            collisionPoint: yCollisionPoint,
+          }
+        : null,
+    };
   }
 }

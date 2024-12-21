@@ -1,5 +1,5 @@
 import { Player } from './player';
-import { Map } from './map';
+import { Map, MapCollisionManager } from './map';
 import { FirstPersonRenderer, TopDownRenderer } from './renderer';
 import { Scene } from './types';
 import { Vector2D } from './utils/vector';
@@ -106,12 +106,11 @@ const mapC = [
 ];
 /* eslint-enable */
 
-// TODO reimplement
-// const collisionManager = new CollisionManager(mapW, mapX, mapY, mapS);
-
 const scene = new Scene();
-scene.addObject(new Player(new Vector2D(400, 150)));
-scene.addObject(new Map(mapW, mapF, mapC, mapX, mapY, mapS, textures));
+const map = new Map(mapW, mapF, mapC, mapX, mapY, mapS, textures, 32);
+const mapCollisionManager = new MapCollisionManager(map);
+scene.addObject(map);
+scene.addObject(new Player(new Vector2D(400, 150), mapCollisionManager));
 
 let topDownRenderer: TopDownRenderer;
 let firstPersonRenderer: FirstPersonRenderer;
@@ -139,7 +138,7 @@ const init = () => {
 
   gl.useProgram(webGLProgram);
 
-  topDownRenderer = new TopDownRenderer(gl, webGLProgram, canvas.width, canvas.height, 320);
+  topDownRenderer = new TopDownRenderer(gl, webGLProgram, canvas.width, canvas.height);
   firstPersonRenderer = new FirstPersonRenderer(gl, webGLProgram, canvas.width, canvas.height, 320);
 };
 
