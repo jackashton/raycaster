@@ -5,16 +5,9 @@ import { Scene } from './types';
 import { Vector2D } from './utils/vector';
 import parsePPM from './utils/parsePPM';
 
-import dark_stone_9 from './assets/textures/dark_stone_9.ppm';
-import dark_brick_2 from './assets/textures/dark_brick_2.ppm';
-import dark_corrupted_4 from './assets/textures/dark_corrupted_4.ppm';
-import toxic_3 from './assets/textures/toxic_3.ppm';
-import door_1 from './assets/textures/door_1.ppm';
+import tileMap from './assets/textures/tilemap.ppm';
 
-const textures = [dark_stone_9, dark_brick_2, dark_corrupted_4, door_1, toxic_3].map((texture) => {
-  const { values } = parsePPM(texture);
-  return values;
-});
+const { values: textures } = parsePPM(tileMap);
 
 const vertexShaderSource = `
   attribute vec2 a_position;
