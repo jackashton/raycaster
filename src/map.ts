@@ -9,7 +9,7 @@ export class Map implements GameObject {
     public mapX: number,
     public mapY: number,
     public mapS: number,
-    public textures: Uint8Array[],
+    public textures: Uint8Array,
     public tileSize: number,
   ) {}
 
