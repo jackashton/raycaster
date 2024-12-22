@@ -6,8 +6,10 @@ import { Vector2D } from './utils/vector';
 import parsePPM from './utils/parsePPM';
 
 import tileMap from './assets/textures/tilemap.ppm';
+import skybox from './assets/textures/skybox.ppm';
 
 const { values: textures } = parsePPM(tileMap);
+const sky = parsePPM(skybox);
 
 const vertexShaderSource = `
   attribute vec2 a_position;
@@ -92,9 +94,9 @@ const mapC = [
   0, 3, 3, 0, 3, 3, 3, 0,
   0, 3, 3, 3, 3, 3, 3, 0,
   0, 0, 3, 0, 3, 3, 3, 0,
-  0, 3, 3, 3, 3, 0, 3, 0,
-  0, 3, 3, 3, 3, 3, 3, 0,
-  0, 3, 3, 3, 3, 3, 3, 0,
+  0, 0, 0, 0, 3, 0, 3, 0,
+  0, 0, 0, 0, 3, 3, 3, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
 ];
 /* eslint-enable */
@@ -132,7 +134,7 @@ const init = () => {
   gl.useProgram(webGLProgram);
 
   topDownRenderer = new TopDownRenderer(gl, webGLProgram, canvas.width, canvas.height);
-  firstPersonRenderer = new FirstPersonRenderer(gl, webGLProgram, canvas.width, canvas.height, 320);
+  firstPersonRenderer = new FirstPersonRenderer(gl, webGLProgram, canvas.width, canvas.height, 320, sky);
 };
 
 const gameLoop = (deltaTime: number) => {

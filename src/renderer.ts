@@ -108,7 +108,39 @@ class FirstPersonRenderer implements Renderer {
     private width: number,
     private height: number,
     private screenHeight: number,
+    private skybox: { width: number; height: number; values: Uint8Array },
   ) {}
+
+  drawSkybox(angle: number) {
+    const colorLocation = this.gl.getUniformLocation(this.program, 'u_color');
+
+    const { height, width, values } = this.skybox;
+
+    for (let y = 0; y < height / 2; y++) {
+      for (let x = 0; x < width; x++) {
+        let xo = Math.floor(angle * 2 - x);
+        if (xo < 0) xo += width;
+        xo = xo % width;
+
+        const pixelIndex = (y * width + xo) * 3;
+        const red = values[pixelIndex] / 255;
+        const green = values[pixelIndex + 1] / 255;
+        const blue = values[pixelIndex + 2] / 255;
+        this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
+        this.gl.bufferData(
+          this.gl.ARRAY_BUFFER,
+          new Float32Array([
+            ...toClipSpace(this.width, this.height, x * 4 + 530, y * 4),
+            ...toClipSpace(this.width, this.height, x * 4 + 530, y * 4 + 4),
+            ...toClipSpace(this.width, this.height, x * 4 + 530 + 4, y * 4 + 4),
+            ...toClipSpace(this.width, this.height, x * 4 + 530 + 4, y * 4),
+          ]),
+          this.gl.STATIC_DRAW,
+        );
+        this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+      }
+    }
+  }
 
   render(scene: Scene): void {
     // TODO cache these so we don't have to find them in the scene every time
@@ -148,6 +180,8 @@ class FirstPersonRenderer implements Renderer {
 
     const offset = new Vector2D(0, 0);
     const maxDof = 8;
+
+    this.drawSkybox((player.angle * 180) / Math.PI);
 
     for (let r = 0; r < fov; r++) {
       let dof = 0;
@@ -345,16 +379,9 @@ class FirstPersonRenderer implements Renderer {
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
           mp * 3 * textureSize * textureSize;
 
-        // default magenta for no texture
-        let red = 1;
-        let green = 0;
-        let blue = 1;
-
-        if (0 <= mp) {
-          red = map.textures[pixelIndex] / 255;
-          green = map.textures[pixelIndex + 1] / 255;
-          blue = map.textures[pixelIndex + 2] / 255;
-        }
+        let red = map.textures[pixelIndex] / 255;
+        let green = map.textures[pixelIndex + 1] / 255;
+        let blue = map.textures[pixelIndex + 2] / 255;
 
         this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
         this.gl.bufferData(
@@ -371,34 +398,31 @@ class FirstPersonRenderer implements Renderer {
 
         // ceilings
         mp = map.mapC[Math.floor(textureY / textureSize) * map.mapX + Math.floor(textureX / textureSize)] - 1;
-        pixelIndex =
-          ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
-          mp * 3 * textureSize * textureSize;
 
-        // default magenta for no texture found
-        red = 1;
-        green = 0;
-        blue = 1;
+        if (mp > 0) {
+          pixelIndex =
+            ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) *
+              3 +
+            mp * 3 * textureSize * textureSize;
 
-        if (0 <= mp) {
           red = map.textures[pixelIndex] / 255;
           green = map.textures[pixelIndex + 1] / 255;
           blue = map.textures[pixelIndex + 2] / 255;
-        }
 
-        this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
-        this.gl.uniform4fv(colorLocation, [red, green, blue, 1]);
-        this.gl.bufferData(
-          this.gl.ARRAY_BUFFER,
-          new Float32Array([
-            ...toClipSpace(this.width, this.height, r * 8 + 530, this.screenHeight - y),
-            ...toClipSpace(this.width, this.height, r * 8 + 530, this.screenHeight - y + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, this.screenHeight - y + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, this.screenHeight - y),
-          ]),
-          this.gl.STATIC_DRAW,
-        );
-        this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+          this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
+          this.gl.uniform4fv(colorLocation, [red, green, blue, 1]);
+          this.gl.bufferData(
+            this.gl.ARRAY_BUFFER,
+            new Float32Array([
+              ...toClipSpace(this.width, this.height, r * 8 + 530, this.screenHeight - y),
+              ...toClipSpace(this.width, this.height, r * 8 + 530, this.screenHeight - y + 8),
+              ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, this.screenHeight - y + 8),
+              ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, this.screenHeight - y),
+            ]),
+            this.gl.STATIC_DRAW,
+          );
+          this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+        }
       }
 
       // Move to next ray
