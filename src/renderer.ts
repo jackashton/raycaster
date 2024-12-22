@@ -342,9 +342,18 @@ class FirstPersonRenderer implements Renderer {
         let pixelIndex =
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
           mp * 3;
-        let red = map.textures[mp][pixelIndex] / 255;
-        let green = map.textures[mp][pixelIndex + 1] / 255;
-        let blue = map.textures[mp][pixelIndex + 2] / 255;
+
+        // default magenta for no texture
+        let red = 1;
+        let green = 0;
+        let blue = 1;
+
+        if (0 <= mp) {
+          red = map.textures[mp][pixelIndex] / 255;
+          green = map.textures[mp][pixelIndex + 1] / 255;
+          blue = map.textures[mp][pixelIndex + 2] / 255;
+        }
+
         this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
         this.gl.bufferData(
           this.gl.ARRAY_BUFFER,
@@ -363,9 +372,18 @@ class FirstPersonRenderer implements Renderer {
         pixelIndex =
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
           mp * 3;
-        red = map.textures[mp][pixelIndex] / 255;
-        green = map.textures[mp][pixelIndex + 1] / 255;
-        blue = map.textures[mp][pixelIndex + 2] / 255;
+
+        // default magenta for no texture found
+        red = 1;
+        green = 0;
+        blue = 1;
+
+        if (0 <= mp) {
+          red = map.textures[mp][pixelIndex] / 255;
+          green = map.textures[mp][pixelIndex + 1] / 255;
+          blue = map.textures[mp][pixelIndex + 2] / 255;
+        }
+
         this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
         this.gl.uniform4fv(colorLocation, [red, green, blue, 1]);
         this.gl.bufferData(
