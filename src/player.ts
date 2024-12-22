@@ -87,34 +87,6 @@ export class Player implements GameObject {
     return new Vector2D(Math.cos(this._angle), -Math.sin(this._angle));
   }
 
-  private getRelativeAngle(point: Vector2D): number {
-    // Vector from player to collision point
-    const dx = point.x - this.position.x;
-    const dy = point.y - this.position.y;
-
-    // Normalize the player's direction vector
-    const playerDirectionX = Math.cos(this.angle);
-    const playerDirectionY = Math.sin(this.angle);
-
-    // Calculate the dot product
-    const dotProduct = dx * playerDirectionX + dy * playerDirectionY;
-
-    // Calculate the magnitude of the vectors
-    const collisionMagnitude = Math.sqrt(dx * dx + dy * dy);
-    const playerDirectionMagnitude = Math.sqrt(
-      playerDirectionX * playerDirectionX + playerDirectionY * playerDirectionY,
-    );
-
-    // Calculate the angle in radians between the player's direction and the collision point
-    const angle = Math.acos(dotProduct / (collisionMagnitude * playerDirectionMagnitude));
-
-    // Determine the sign of the angle (clockwise or counterclockwise)
-    const crossProduct = dx * playerDirectionY - dy * playerDirectionX;
-    const signedAngle = crossProduct < 0 ? -angle : angle;
-
-    return signedAngle;
-  }
-
   update() {
     let newPlayerPosition = this.position;
     const moveDirection = this.input.isActionPressed(Action.MOVE_RIGHT)

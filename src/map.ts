@@ -29,15 +29,16 @@ export class MapCollisionManager {
     let xCollisionPoint: Vector2D | null = null;
     let yCollisionPoint: Vector2D | null = null;
 
-
     // Check collision in x-direction
     const xForwardTileIndex =
       Math.floor(position.y / this.map.mapS) * this.map.mapX + Math.floor((position.x + offset.x) / this.map.mapS);
     const xBackwardTileIndex =
       Math.floor(position.y / this.map.mapS) * this.map.mapX + Math.floor((position.x - offset.x) / this.map.mapS);
 
-    const xForwardTile = this.map.mapW[xForwardTileIndex];
-    const xBackwardTile = this.map.mapW[xBackwardTileIndex];
+    const xForwardTile =
+      0 < xForwardTileIndex && xForwardTileIndex < this.map.mapW.length - 1 ? this.map.mapW[xForwardTileIndex] : 0;
+    const xBackwardTile =
+      0 < xBackwardTileIndex && xBackwardTileIndex < this.map.mapW.length - 1 ? this.map.mapW[xBackwardTileIndex] : 0;
 
     const xCollision = !!(xForwardTile || xBackwardTile);
 
@@ -57,8 +58,10 @@ export class MapCollisionManager {
     const yBackwardTileIndex =
       Math.floor((position.y - offset.y) / this.map.mapS) * this.map.mapX + Math.floor(position.x / this.map.mapS);
 
-    const yForwardTile = this.map.mapW[yForwardTileIndex];
-    const yBackwardTile = this.map.mapW[yBackwardTileIndex];
+    const yForwardTile =
+      0 < yForwardTileIndex && yForwardTileIndex < this.map.mapW.length - 1 ? this.map.mapW[yForwardTileIndex] : 0;
+    const yBackwardTile =
+      0 < yBackwardTileIndex && yBackwardTileIndex < this.map.mapW.length - 1 ? this.map.mapW[yBackwardTileIndex] : 0;
 
     const yCollision = !!(yForwardTile || yBackwardTile);
 
