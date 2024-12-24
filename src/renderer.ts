@@ -130,10 +130,10 @@ class FirstPersonRenderer implements Renderer {
         this.gl.bufferData(
           this.gl.ARRAY_BUFFER,
           new Float32Array([
-            ...toClipSpace(this.width, this.height, x * 4 + 530, y * 4),
-            ...toClipSpace(this.width, this.height, x * 4 + 530, y * 4 + 4),
-            ...toClipSpace(this.width, this.height, x * 4 + 530 + 4, y * 4 + 4),
-            ...toClipSpace(this.width, this.height, x * 4 + 530 + 4, y * 4),
+            ...toClipSpace(this.width, this.height, x * 8, y * 8),
+            ...toClipSpace(this.width, this.height, x * 8, y * 8 + 8),
+            ...toClipSpace(this.width, this.height, x * 8 + 8, y * 8 + 8),
+            ...toClipSpace(this.width, this.height, x * 8 + 8, y * 8),
           ]),
           this.gl.STATIC_DRAW,
         );
@@ -158,8 +158,8 @@ class FirstPersonRenderer implements Renderer {
 
     if (!player || !map) throw new Error('Player or Map is not defined');
 
-    const rayAngleDelta = (2 * Math.PI) / 360;
-    const fov = 60;
+    const rayAngleDelta = Math.PI / 360;
+    const fov = 120;
 
     const textureSize = 32;
 
@@ -172,8 +172,7 @@ class FirstPersonRenderer implements Renderer {
 
     const colorLocation = this.gl.getUniformLocation(this.program, 'u_color');
 
-    const horizontalHitWallColor = [0.9, 0.0, 0.0, 1.0];
-    const verticalHitWallColor = [0.7, 0.0, 0.0, 1.0];
+    const floorTextureCoefficient = 316;
 
     let rayAngle = player.angle + rayAngleDelta * (fov / 2);
     rayAngle = normalizeAngle(rayAngle);
@@ -280,7 +279,6 @@ class FirstPersonRenderer implements Renderer {
         }
       }
 
-      let wallColor = horizontalHitWallColor;
       let distance = 0;
       let shade = 1;
 
@@ -289,7 +287,6 @@ class FirstPersonRenderer implements Renderer {
         rayPosition.y = verticalRayPosition.y;
         distanceHorizontal = distanceVertical;
         distance = distanceHorizontal;
-        wallColor = verticalHitWallColor;
         horizontalMapTextureIndex = verticalMapTextureIndex;
         shade = 0.5;
       }
@@ -299,19 +296,7 @@ class FirstPersonRenderer implements Renderer {
         rayPosition.y = horizontalRayPosition.y;
         distanceVertical = distanceHorizontal;
         distance = distanceVertical;
-        wallColor = horizontalHitWallColor;
       }
-
-      this.gl.uniform4fv(colorLocation, wallColor);
-      this.gl.bufferData(
-        this.gl.ARRAY_BUFFER,
-        new Float32Array([
-          ...toClipSpace(this.width, this.height, player.position.x, player.position.y),
-          ...toClipSpace(this.width, this.height, rayPosition.x, rayPosition.y),
-        ]),
-        this.gl.STATIC_DRAW,
-      );
-      this.gl.drawArrays(this.gl.LINES, 0, 2);
 
       // draw walls
       // fix fisheye only on horizontal distance
@@ -357,10 +342,10 @@ class FirstPersonRenderer implements Renderer {
         this.gl.bufferData(
           this.gl.ARRAY_BUFFER,
           new Float32Array([
-            ...toClipSpace(this.width, this.height, r * 8 + 530, y + lineOffset),
-            ...toClipSpace(this.width, this.height, r * 8 + 530, y + lineOffset + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, y + lineOffset + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, y + lineOffset),
+            ...toClipSpace(this.width, this.height, r * 8, y + lineOffset),
+            ...toClipSpace(this.width, this.height, r * 8, y + lineOffset + 8),
+            ...toClipSpace(this.width, this.height, r * 8 + 8, y + lineOffset + 8),
+            ...toClipSpace(this.width, this.height, r * 8 + 8, y + lineOffset),
           ]),
           this.gl.STATIC_DRAW,
         );
@@ -372,8 +357,10 @@ class FirstPersonRenderer implements Renderer {
       for (let y = lineOffset + lineHeight; y < this.screenHeight; y++) {
         // floors
         const dy = y - this.screenHeight / 2;
-        const textureX = player.position.x / 2 + (Math.cos(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
-        const textureY = player.position.y / 2 - (Math.sin(rayAngle) * 158 * textureSize) / dy / rayAngleFixed;
+        const textureX =
+          player.position.x / 2 + (Math.cos(rayAngle) * floorTextureCoefficient * textureSize) / dy / rayAngleFixed;
+        const textureY =
+          player.position.y / 2 - (Math.sin(rayAngle) * floorTextureCoefficient * textureSize) / dy / rayAngleFixed;
         let mp = map.mapF[Math.floor(textureY / textureSize) * map.mapX + Math.floor(textureX / textureSize)] - 1;
         let pixelIndex =
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
@@ -387,10 +374,10 @@ class FirstPersonRenderer implements Renderer {
         this.gl.bufferData(
           this.gl.ARRAY_BUFFER,
           new Float32Array([
-            ...toClipSpace(this.width, this.height, r * 8 + 530, y),
-            ...toClipSpace(this.width, this.height, r * 8 + 530, y + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, y + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, y),
+            ...toClipSpace(this.width, this.height, r * 8, y),
+            ...toClipSpace(this.width, this.height, r * 8, y + 8),
+            ...toClipSpace(this.width, this.height, r * 8 + 8, y + 8),
+            ...toClipSpace(this.width, this.height, r * 8 + 8, y),
           ]),
           this.gl.STATIC_DRAW,
         );
@@ -414,10 +401,10 @@ class FirstPersonRenderer implements Renderer {
           this.gl.bufferData(
             this.gl.ARRAY_BUFFER,
             new Float32Array([
-              ...toClipSpace(this.width, this.height, r * 8 + 530, this.screenHeight - y),
-              ...toClipSpace(this.width, this.height, r * 8 + 530, this.screenHeight - y + 8),
-              ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, this.screenHeight - y + 8),
-              ...toClipSpace(this.width, this.height, r * 8 + 530 + 8, this.screenHeight - y),
+              ...toClipSpace(this.width, this.height, r * 8, this.screenHeight - y),
+              ...toClipSpace(this.width, this.height, r * 8, this.screenHeight - y + 8),
+              ...toClipSpace(this.width, this.height, r * 8 + 8, this.screenHeight - y + 8),
+              ...toClipSpace(this.width, this.height, r * 8 + 8, this.screenHeight - y),
             ]),
             this.gl.STATIC_DRAW,
           );
