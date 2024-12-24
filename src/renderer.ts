@@ -129,15 +129,10 @@ class FirstPersonRenderer implements Renderer {
         this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
         this.gl.bufferData(
           this.gl.ARRAY_BUFFER,
-          new Float32Array([
-            ...toClipSpace(this.width, this.height, x * 8, y * 8),
-            ...toClipSpace(this.width, this.height, x * 8, y * 8 + 8),
-            ...toClipSpace(this.width, this.height, x * 8 + 8, y * 8 + 8),
-            ...toClipSpace(this.width, this.height, x * 8 + 8, y * 8),
-          ]),
+          new Float32Array([...toClipSpace(this.width, this.height, x * 8, y * 8)]),
           this.gl.STATIC_DRAW,
         );
-        this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+        this.gl.drawArrays(this.gl.POINTS, 0, 1);
       }
     }
   }
@@ -341,15 +336,10 @@ class FirstPersonRenderer implements Renderer {
         this.gl.uniform4fv(colorLocation, [red * shade, green * shade, blue * shade, 1.0]);
         this.gl.bufferData(
           this.gl.ARRAY_BUFFER,
-          new Float32Array([
-            ...toClipSpace(this.width, this.height, r * 8, y + lineOffset),
-            ...toClipSpace(this.width, this.height, r * 8, y + lineOffset + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 8, y + lineOffset + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 8, y + lineOffset),
-          ]),
+          new Float32Array([...toClipSpace(this.width, this.height, r * 8, y + lineOffset)]),
           this.gl.STATIC_DRAW,
         );
-        this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+        this.gl.drawArrays(this.gl.POINTS, 0, 1);
         textureY += textureYStep;
       }
 
@@ -373,15 +363,10 @@ class FirstPersonRenderer implements Renderer {
         this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
         this.gl.bufferData(
           this.gl.ARRAY_BUFFER,
-          new Float32Array([
-            ...toClipSpace(this.width, this.height, r * 8, y),
-            ...toClipSpace(this.width, this.height, r * 8, y + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 8, y + 8),
-            ...toClipSpace(this.width, this.height, r * 8 + 8, y),
-          ]),
+          new Float32Array([...toClipSpace(this.width, this.height, r * 8, y)]),
           this.gl.STATIC_DRAW,
         );
-        this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+        this.gl.drawArrays(this.gl.POINTS, 0, 1);
 
         // ceilings
         mp = map.mapC[Math.floor(textureY / textureSize) * map.mapX + Math.floor(textureX / textureSize)] - 1;
@@ -400,15 +385,10 @@ class FirstPersonRenderer implements Renderer {
           this.gl.uniform4fv(colorLocation, [red, green, blue, 1]);
           this.gl.bufferData(
             this.gl.ARRAY_BUFFER,
-            new Float32Array([
-              ...toClipSpace(this.width, this.height, r * 8, this.screenHeight - y),
-              ...toClipSpace(this.width, this.height, r * 8, this.screenHeight - y + 8),
-              ...toClipSpace(this.width, this.height, r * 8 + 8, this.screenHeight - y + 8),
-              ...toClipSpace(this.width, this.height, r * 8 + 8, this.screenHeight - y),
-            ]),
+            new Float32Array([...toClipSpace(this.width, this.height, r * 8, this.screenHeight - y)]),
             this.gl.STATIC_DRAW,
           );
-          this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+          this.gl.drawArrays(this.gl.POINTS, 0, 1);
         }
       }
 
