@@ -102,37 +102,56 @@ class TopDownRenderer implements Renderer {
 }
 
 class FirstPersonRenderer implements Renderer {
+  private pixelBuffer: Uint8Array;
+
   constructor(
     private gl: WebGL2RenderingContext,
     private program: WebGLProgram,
     private width: number,
     private height: number,
-    private screenHeight: number,
+    private texture: WebGLTexture | null,
     private skybox: { width: number; height: number; values: Uint8Array },
-  ) {}
+  ) {
+    this.pixelBuffer = new Uint8Array(this.width * this.height * 4);
+  }
+
+  setPixel(x: number, y: number, color: [number, number, number]) {
+    const index = (y * this.width + x) * 4;
+    this.pixelBuffer[index] = color[0]; // Red
+    this.pixelBuffer[index + 1] = color[1]; // Green
+    this.pixelBuffer[index + 2] = color[2]; // Blue
+    this.pixelBuffer[index + 3] = 255; // Alpha
+  }
 
   drawSkybox(angle: number) {
-    const colorLocation = this.gl.getUniformLocation(this.program, 'u_color');
+    const { height: textureHeight, width: textureWidth, values } = this.skybox;
 
-    const { height, width, values } = this.skybox;
+    // Screen dimensions (half the screen height for the skybox)
+    const screenHeight = this.height / 2;
+    const screenWidth = this.width;
 
-    for (let y = 0; y < height / 2; y++) {
-      for (let x = 0; x < width; x++) {
-        let xo = Math.floor(angle * 2 - x);
-        if (xo < 0) xo += width;
-        xo = xo % width;
+    // Scaling factor to map the texture to the screen
+    const scaleY = textureHeight / screenHeight;
+    const scaleX = textureWidth / screenWidth;
 
-        const pixelIndex = (y * width + xo) * 3;
-        const red = values[pixelIndex] / 255;
-        const green = values[pixelIndex + 1] / 255;
-        const blue = values[pixelIndex + 2] / 255;
-        this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
-        this.gl.bufferData(
-          this.gl.ARRAY_BUFFER,
-          new Float32Array([...toClipSpace(this.width, this.height, x * 8, y * 8)]),
-          this.gl.STATIC_DRAW,
-        );
-        this.gl.drawArrays(this.gl.POINTS, 0, 1);
+    for (let y = 0; y < screenHeight; y++) {
+      for (let x = 0; x < screenWidth; x++) {
+        // Map screen coordinates (x, y) to texture coordinates
+        const textureY = Math.floor(y * scaleY);
+        let textureX = Math.floor(x * scaleX + angle * 1.5);
+
+        // Handle wrapping in the horizontal direction
+        if (textureX < 0) textureX += textureWidth;
+        textureX = textureX % textureWidth;
+
+        // Fetch the pixel color from the texture
+        const pixelIndex = (textureY * textureWidth + textureX) * 3;
+        const red = values[pixelIndex];
+        const green = values[pixelIndex + 1];
+        const blue = values[pixelIndex + 2];
+
+        // Set the pixel on the screen
+        this.setPixel(x, y, [red, green, blue]);
       }
     }
   }
@@ -157,15 +176,6 @@ class FirstPersonRenderer implements Renderer {
     const fov = 120;
 
     const textureSize = 32;
-
-    const positionBuffer = this.gl.createBuffer();
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
-
-    const positionAttributeLocation = this.gl.getAttribLocation(this.program, 'a_position');
-    this.gl.enableVertexAttribArray(positionAttributeLocation);
-    this.gl.vertexAttribPointer(positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
-
-    const colorLocation = this.gl.getUniformLocation(this.program, 'u_color');
 
     const floorTextureCoefficient = 316;
 
@@ -298,16 +308,16 @@ class FirstPersonRenderer implements Renderer {
       const rayAngleFixed = Math.cos(normalizeAngle(player.angle - rayAngle));
       if (distance === distanceHorizontal) distance = distance * rayAngleFixed;
 
-      let lineHeight = (map.mapS * this.screenHeight) / distance;
+      let lineHeight = (map.mapS * this.height) / distance;
       const textureYStep = textureSize / lineHeight;
       let textureYOffset = 0;
 
-      if (lineHeight > this.screenHeight) {
-        textureYOffset = (lineHeight - this.screenHeight) / 2;
-        lineHeight = this.screenHeight;
+      if (lineHeight > this.height) {
+        textureYOffset = (lineHeight - this.height) / 2;
+        lineHeight = this.height;
       }
 
-      const lineOffset = this.screenHeight / 2 - (lineHeight >> 1);
+      const lineOffset = this.height / 2 - (lineHeight >> 1);
 
       let textureY = textureYOffset * textureYStep;
 
@@ -330,23 +340,19 @@ class FirstPersonRenderer implements Renderer {
         const pixelIndex =
           (Math.trunc(textureY) * textureSize + Math.trunc(textureX)) * 3 +
           horizontalMapTextureIndex * textureSize * textureSize * 3;
-        const red = map.textures[pixelIndex] / 255;
-        const green = map.textures[pixelIndex + 1] / 255;
-        const blue = map.textures[pixelIndex + 2] / 255;
-        this.gl.uniform4fv(colorLocation, [red * shade, green * shade, blue * shade, 1.0]);
-        this.gl.bufferData(
-          this.gl.ARRAY_BUFFER,
-          new Float32Array([...toClipSpace(this.width, this.height, r * 8, y + lineOffset)]),
-          this.gl.STATIC_DRAW,
-        );
-        this.gl.drawArrays(this.gl.POINTS, 0, 1);
+        const red = map.textures[pixelIndex];
+        const green = map.textures[pixelIndex + 1];
+        const blue = map.textures[pixelIndex + 2];
+
+        this.setPixel(Math.floor(r), y + lineOffset, [red, green, blue]);
+
         textureY += textureYStep;
       }
 
       // draw floors and ceilings
-      for (let y = lineOffset + lineHeight; y < this.screenHeight; y++) {
+      for (let y = lineOffset + lineHeight; y < this.height; y++) {
         // floors
-        const dy = y - this.screenHeight / 2;
+        const dy = y - this.height / 2;
         const textureX =
           player.position.x / 2 + (Math.cos(rayAngle) * floorTextureCoefficient * textureSize) / dy / rayAngleFixed;
         const textureY =
@@ -356,17 +362,11 @@ class FirstPersonRenderer implements Renderer {
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
           mp * 3 * textureSize * textureSize;
 
-        let red = map.textures[pixelIndex] / 255;
-        let green = map.textures[pixelIndex + 1] / 255;
-        let blue = map.textures[pixelIndex + 2] / 255;
+        let red = map.textures[pixelIndex];
+        let green = map.textures[pixelIndex + 1];
+        let blue = map.textures[pixelIndex + 2];
 
-        this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
-        this.gl.bufferData(
-          this.gl.ARRAY_BUFFER,
-          new Float32Array([...toClipSpace(this.width, this.height, r * 8, y)]),
-          this.gl.STATIC_DRAW,
-        );
-        this.gl.drawArrays(this.gl.POINTS, 0, 1);
+        this.setPixel(Math.floor(r), Math.floor(y), [red, green, blue]);
 
         // ceilings
         mp = map.mapC[Math.floor(textureY / textureSize) * map.mapX + Math.floor(textureX / textureSize)] - 1;
@@ -377,24 +377,31 @@ class FirstPersonRenderer implements Renderer {
               3 +
             mp * 3 * textureSize * textureSize;
 
-          red = map.textures[pixelIndex] / 255;
-          green = map.textures[pixelIndex + 1] / 255;
-          blue = map.textures[pixelIndex + 2] / 255;
+          red = map.textures[pixelIndex];
+          green = map.textures[pixelIndex + 1];
+          blue = map.textures[pixelIndex + 2];
 
-          this.gl.uniform4fv(colorLocation, [red, green, blue, 1.0]);
-          this.gl.uniform4fv(colorLocation, [red, green, blue, 1]);
-          this.gl.bufferData(
-            this.gl.ARRAY_BUFFER,
-            new Float32Array([...toClipSpace(this.width, this.height, r * 8, this.screenHeight - y)]),
-            this.gl.STATIC_DRAW,
-          );
-          this.gl.drawArrays(this.gl.POINTS, 0, 1);
+          this.setPixel(Math.floor(r), Math.floor(this.height - y), [red, green, blue]);
         }
       }
 
       // Move to next ray
       rayAngle = normalizeAngle(rayAngle - rayAngleDelta);
     }
+
+    // Upload pixel data to texture
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+    this.gl.texSubImage2D(
+      this.gl.TEXTURE_2D,
+      0,
+      0,
+      0,
+      this.width,
+      this.height,
+      this.gl.RGBA,
+      this.gl.UNSIGNED_BYTE,
+      this.pixelBuffer,
+    );
   }
 }
 
