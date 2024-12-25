@@ -248,7 +248,7 @@ class FirstPersonRenderer implements Renderer {
       for (let x = 0; x < screenWidth; x++) {
         // Map screen coordinates (x, y) to texture coordinates
         const textureY = Math.floor(y * scaleY);
-        let textureX = Math.floor(x * scaleX + angle);
+        let textureX = Math.floor(angle * 2 - (x * scaleX));
 
         // Handle wrapping in the horizontal direction
         if (textureX < 0) textureX += textureWidth;
