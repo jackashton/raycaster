@@ -1,6 +1,6 @@
 import { Player } from './player';
 import { Map, MapCollisionManager } from './map';
-import {FirstPersonRenderer, TopDownRenderer} from './renderer';
+import { FirstPersonRenderer } from './renderer';
 import { Scene } from './types';
 import { Vector2D } from './utils/vector';
 import parsePPM from './utils/parsePPM';

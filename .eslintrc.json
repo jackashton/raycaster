@@ -1,6 +1,5 @@
 {
   "root": true,
-  "ignorePatterns": ["!**/*"],
   "plugins": ["prettier", "vitest"],
   "parser": "@typescript-eslint/parser",
   "extends": [
