@@ -9,13 +9,82 @@ interface Renderer {
   render(scene: Scene): void;
 }
 
+const vertexShaderSource = `
+  attribute vec2 a_position;
+  varying vec2 v_texCoord; // Pass texture coordinates to fragment shader
+  void main() {
+    gl_Position = vec4(a_position, 0.0, 1.0);
+    v_texCoord = (a_position + 1.0) / 2.0; // Map [-1, 1] to [0, 1]
+    gl_PointSize = 8.0;
+  }
+`;
+
+const fragmentShaderSource = `
+  precision mediump float;
+  uniform vec4 u_color;
+
+  uniform sampler2D u_texture; // Use the texture
+  varying vec2 v_texCoord;     // Pass texture coordinates from vertex shader
+  void main() {
+    gl_FragColor = texture2D(u_texture, v_texCoord); // Sample texture
+  }
+`;
+
+const createShader = (gl: WebGL2RenderingContext, type: number, source: string): WebGLShader | null => {
+  const shader = gl.createShader(type);
+  if (!shader) return null;
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+  if (success) return shader;
+
+  console.error(gl.getShaderInfoLog(shader));
+  gl.deleteShader(shader);
+  return null;
+};
+
+const createProgram = (
+  gl: WebGLRenderingContext,
+  vertexShader: WebGLShader,
+  fragmentShader: WebGLShader,
+): WebGLProgram | null => {
+  const program = gl.createProgram();
+  if (!program) return null;
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  const success = gl.getProgramParameter(program, gl.LINK_STATUS);
+  if (success) return program;
+
+  console.error(gl.getProgramInfoLog(program));
+  gl.deleteProgram(program);
+  return null;
+};
+
 class TopDownRenderer implements Renderer {
+  private colorLocation: WebGLUniformLocation | null = null;
+
   constructor(
     private gl: WebGL2RenderingContext,
-    private program: WebGLProgram,
     private width: number,
     private height: number,
-  ) {}
+  ) {
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+    if (!vertexShader || !fragmentShader) return;
+
+    const webGLProgram = createProgram(gl, vertexShader, fragmentShader);
+    if (!webGLProgram) return;
+
+    gl.useProgram(webGLProgram);
+
+    const positionAttributeLocation = this.gl.getAttribLocation(webGLProgram, 'a_position');
+    this.gl.enableVertexAttribArray(positionAttributeLocation);
+    this.gl.vertexAttribPointer(positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
+
+    this.colorLocation = this.gl.getUniformLocation(webGLProgram, 'u_color');
+  }
 
   render(scene: Scene): void {
     for (const obj of scene.objects) {
@@ -39,12 +108,7 @@ class TopDownRenderer implements Renderer {
       this.gl.STATIC_DRAW,
     );
 
-    const positionAttributeLocation = this.gl.getAttribLocation(this.program, 'a_position');
-    this.gl.enableVertexAttribArray(positionAttributeLocation);
-    this.gl.vertexAttribPointer(positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
-
-    const colorLocation = this.gl.getUniformLocation(this.program, 'u_color');
-    this.gl.uniform4fv(colorLocation, color);
+    this.gl.uniform4fv(this.colorLocation, color);
 
     this.gl.drawArrays(this.gl.POINTS, 0, 1);
 
@@ -70,12 +134,6 @@ class TopDownRenderer implements Renderer {
     const positionBuffer = this.gl.createBuffer();
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
 
-    const positionAttributeLocation = this.gl.getAttribLocation(this.program, 'a_position');
-    this.gl.enableVertexAttribArray(positionAttributeLocation);
-    this.gl.vertexAttribPointer(positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
-
-    const colorLocation = this.gl.getUniformLocation(this.program, 'u_color');
-
     for (let y = 0; y < map.mapY; y++) {
       for (let x = 0; x < map.mapX; x++) {
         let color = [0.0, 0.0, 0.0, 1.0];
@@ -94,7 +152,7 @@ class TopDownRenderer implements Renderer {
         ];
 
         this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
-        this.gl.uniform4fv(colorLocation, color);
+        this.gl.uniform4fv(this.colorLocation, color);
         this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
       }
     }
@@ -102,17 +160,48 @@ class TopDownRenderer implements Renderer {
 }
 
 class FirstPersonRenderer implements Renderer {
-  private pixelBuffer: Uint8Array;
+  private readonly pixelBuffer: Uint8Array;
 
   constructor(
     private gl: WebGL2RenderingContext,
-    private program: WebGLProgram,
     private width: number,
     private height: number,
-    private texture: WebGLTexture | null,
     private skybox: { width: number; height: number; values: Uint8Array },
   ) {
     this.pixelBuffer = new Uint8Array(this.width * this.height * 4);
+
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+    if (!vertexShader || !fragmentShader) return;
+
+    const webGLProgram = createProgram(gl, vertexShader, fragmentShader);
+    if (!webGLProgram) return;
+
+    gl.useProgram(webGLProgram);
+
+    // Create texture
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+
+    // Create fullscreen quad
+    const quadVertices = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
+
+    // Set up attributes
+    const positionAttributeLocation = gl.getAttribLocation(webGLProgram, 'a_position');
+    gl.enableVertexAttribArray(positionAttributeLocation);
+    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
   }
 
   setPixel(x: number, y: number, color: [number, number, number]) {
@@ -390,7 +479,6 @@ class FirstPersonRenderer implements Renderer {
     }
 
     // Upload pixel data to texture
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
     this.gl.texSubImage2D(
       this.gl.TEXTURE_2D,
       0,
@@ -402,6 +490,10 @@ class FirstPersonRenderer implements Renderer {
       this.gl.UNSIGNED_BYTE,
       this.pixelBuffer,
     );
+
+    // Draw the quad
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 }
 
