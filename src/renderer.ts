@@ -9,27 +9,6 @@ interface Renderer {
   render(scene: Scene): void;
 }
 
-const vertexShaderSource = `
-  attribute vec2 a_position;
-  varying vec2 v_texCoord; // Pass texture coordinates to fragment shader
-  void main() {
-    gl_Position = vec4(a_position, 0.0, 1.0);
-    v_texCoord = (a_position + 1.0) / 2.0; // Map [-1, 1] to [0, 1]
-    gl_PointSize = 8.0;
-  }
-`;
-
-const fragmentShaderSource = `
-  precision mediump float;
-  uniform vec4 u_color;
-
-  uniform sampler2D u_texture; // Use the texture
-  varying vec2 v_texCoord;     // Pass texture coordinates from vertex shader
-  void main() {
-    gl_FragColor = texture2D(u_texture, v_texCoord); // Sample texture
-  }
-`;
-
 const createShader = (gl: WebGL2RenderingContext, type: number, source: string): WebGLShader | null => {
   const shader = gl.createShader(type);
   if (!shader) return null;
@@ -62,15 +41,33 @@ const createProgram = (
 };
 
 class TopDownRenderer implements Renderer {
-  private colorLocation: WebGLUniformLocation | null = null;
+  vertexShaderSource = `
+    attribute vec2 a_position;
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+      gl_PointSize = 8.0;
+    }
+  `;
+
+  fragmentShaderSource = `
+    precision mediump float;
+    uniform vec4 u_color;
+
+    void main() {
+      gl_FragColor = u_color;
+    }
+  `;
+
+  private positionBuffer: WebGLBuffer | null = null;
+  private readonly colorLocation: WebGLUniformLocation | null = null;
 
   constructor(
     private gl: WebGL2RenderingContext,
     private width: number,
     private height: number,
   ) {
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, this.vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, this.fragmentShaderSource);
 
     if (!vertexShader || !fragmentShader) return;
 
@@ -80,6 +77,8 @@ class TopDownRenderer implements Renderer {
     gl.useProgram(webGLProgram);
 
     const positionAttributeLocation = this.gl.getAttribLocation(webGLProgram, 'a_position');
+    this.positionBuffer = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
     this.gl.enableVertexAttribArray(positionAttributeLocation);
     this.gl.vertexAttribPointer(positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
 
@@ -87,6 +86,9 @@ class TopDownRenderer implements Renderer {
   }
 
   render(scene: Scene): void {
+    this.gl.clearColor(0.3, 0.3, 0.3, 1.0); // background color
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
     for (const obj of scene.objects) {
       if (obj instanceof Player) {
         this.drawPlayer(obj);
@@ -100,8 +102,7 @@ class TopDownRenderer implements Renderer {
     const color = [0.0, 1.0, 1.0, 1.0];
     const showDirection = true;
 
-    const positionBuffer = this.gl.createBuffer();
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
     this.gl.bufferData(
       this.gl.ARRAY_BUFFER,
       new Float32Array(toClipSpace(this.width, this.height, player.position.x, player.position.y)),
@@ -131,8 +132,7 @@ class TopDownRenderer implements Renderer {
     // TODO move constants somewhere more appropriate
     const gap = 1;
 
-    const positionBuffer = this.gl.createBuffer();
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
 
     for (let y = 0; y < map.mapY; y++) {
       for (let x = 0; x < map.mapX; x++) {
@@ -160,6 +160,27 @@ class TopDownRenderer implements Renderer {
 }
 
 class FirstPersonRenderer implements Renderer {
+  vertexShaderSource = `
+    attribute vec2 a_position;
+    varying vec2 v_texCoord; // Pass texture coordinates to fragment shader
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+      v_texCoord = (a_position + 1.0) / 2.0; // Map [-1, 1] to [0, 1]
+      gl_PointSize = 8.0;
+    }
+  `;
+
+  fragmentShaderSource = `
+    precision mediump float;
+    uniform vec4 u_color;
+
+    uniform sampler2D u_texture; // Use the texture
+    varying vec2 v_texCoord;     // Pass texture coordinates from vertex shader
+    void main() {
+      gl_FragColor = texture2D(u_texture, v_texCoord); // Sample texture
+    }
+  `;
+
   private readonly pixelBuffer: Uint8Array;
 
   constructor(
@@ -170,8 +191,8 @@ class FirstPersonRenderer implements Renderer {
   ) {
     this.pixelBuffer = new Uint8Array(this.width * this.height * 4);
 
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, this.vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, this.fragmentShaderSource);
 
     if (!vertexShader || !fragmentShader) return;
 

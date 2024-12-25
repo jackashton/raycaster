@@ -1,6 +1,6 @@
 import { Player } from './player';
 import { Map, MapCollisionManager } from './map';
-import { FirstPersonRenderer } from './renderer';
+import {FirstPersonRenderer, TopDownRenderer} from './renderer';
 import { Scene } from './types';
 import { Vector2D } from './utils/vector';
 import parsePPM from './utils/parsePPM';
@@ -61,6 +61,7 @@ scene.addObject(map);
 scene.addObject(new Player(new Vector2D(400, 150), mapCollisionManager));
 
 let firstPersonRenderer: FirstPersonRenderer;
+// let topdownRenderer: TopDownRenderer;
 
 const init = () => {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -72,6 +73,7 @@ const init = () => {
   }
 
   firstPersonRenderer = new FirstPersonRenderer(gl, canvas.width / 8, canvas.height, sky);
+  // topdownRenderer = new TopDownRenderer(gl, canvas.width, canvas.height);
 };
 
 const gameLoop = (deltaTime: number) => {
@@ -81,6 +83,7 @@ const gameLoop = (deltaTime: number) => {
   });
 
   firstPersonRenderer.render(scene);
+  // topdownRenderer.render(scene);
 
   requestAnimationFrame(gameLoop);
 };
