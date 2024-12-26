@@ -2,6 +2,7 @@
 import { defineConfig } from 'vite';
 import fs from 'fs';
 import path from 'path';
+import parsePPM from 'ppm-parser';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
@@ -21,11 +22,12 @@ export default defineConfig({
   plugins: [
     {
       name: 'vite-ppm-loader',
-      transform(_, id) {
+      async transform(_, id) {
         if (id.endsWith('.ppm')) {
           const buffer = fs.readFileSync(id);
           const uint8Array = new Uint8Array(buffer);
-          return `export default new Uint8Array(${JSON.stringify(Array.from(uint8Array))});`;
+          const parsedData = parsePPM(uint8Array);
+          return `export default ${JSON.stringify(parsedData)};`;
         }
       },
     },

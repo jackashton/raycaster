@@ -1,4 +1,10 @@
 declare module '*.ppm' {
-  const value: Uint8Array;
+  interface PPMData {
+    values: Uint8Array;
+    width: number;
+    height: number;
+  }
+
+  const value: PPMData;
   export default value;
 }

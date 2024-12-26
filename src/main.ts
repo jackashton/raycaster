@@ -1,4 +1,3 @@
-import parsePPM from 'ppm-parser';
 import { Player } from './player';
 import { Map, MapCollisionManager } from './map';
 import { FirstPersonRenderer } from './renderer';
@@ -8,8 +7,7 @@ import { Vector2D } from './utils/vector';
 import tileMap from './assets/textures/tilemap.ppm';
 import skybox from './assets/textures/skybox.ppm';
 
-const { values: textures } = parsePPM(tileMap);
-const sky = parsePPM(skybox);
+const { values: textures } = tileMap;
 
 const mapX = 8;
 const mapY = 8;
@@ -72,7 +70,7 @@ const init = () => {
     return;
   }
 
-  firstPersonRenderer = new FirstPersonRenderer(gl, canvas.width / 8, canvas.height, sky);
+  firstPersonRenderer = new FirstPersonRenderer(gl, canvas.width / 8, canvas.height, skybox);
   // topdownRenderer = new TopDownRenderer(gl, canvas.width, canvas.height);
 };
 

@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   ppm-parser:
-    specifier: ~1.0.1
-    version: 1.0.1
+    specifier: ^1.0.2
+    version: 1.0.2
 
 devDependencies:
   '@types/node':
@@ -1755,8 +1755,8 @@ packages:
       source-map-js: 1.2.0
     dev: true
 
-  /ppm-parser@1.0.1:
-    resolution: {integrity: sha512-q9BsWRhzxv+g1PNRixDFWTn5vxlh4dmysWbnqEmIF74WL8/9i52KJLc/xpLLVBVOcd6DZI7v+JtQE1yPoK/Bvw==}
+  /ppm-parser@1.0.2:
+    resolution: {integrity: sha512-aHDbjl5cUFOUCBb4b0X2J3dhC1RmUgs3GLwe0bp6gZugob4hw/BmL9TYaiEpF25JFIcR520HNGu48LZLRjcMlQ==}
     dev: false
 
   /prelude-ls@1.2.1:
