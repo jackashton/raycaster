@@ -237,14 +237,14 @@ class FirstPersonRenderer implements Renderer {
     const { height: textureHeight, width: textureWidth, values } = this.skybox;
 
     // Screen dimensions (half the screen height for the skybox)
-    const screenHeight = this.height / 2;
+    const screenHeight = this.height;
     const screenWidth = this.width;
 
     // Scaling factor to map the texture to the screen
     const scaleY = textureHeight / screenHeight;
     const scaleX = textureWidth / screenWidth;
 
-    for (let y = 0; y < screenHeight; y++) {
+    for (let y = 0; y < screenHeight / 2; y++) {
       for (let x = 0; x < screenWidth; x++) {
         // Map screen coordinates (x, y) to texture coordinates
         const textureY = Math.floor(y * scaleY);
