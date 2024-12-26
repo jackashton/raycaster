@@ -1,9 +1,9 @@
+import parsePPM from 'ppm-parser';
 import { Player } from './player';
 import { Map, MapCollisionManager } from './map';
 import { FirstPersonRenderer } from './renderer';
 import { Scene } from './types';
 import { Vector2D } from './utils/vector';
-import parsePPM from './utils/parsePPM';
 
 import tileMap from './assets/textures/tilemap.ppm';
 import skybox from './assets/textures/skybox.ppm';

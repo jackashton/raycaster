@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+dependencies:
+  ppm-parser:
+    specifier: ~1.0.1
+    version: 1.0.1
+
 devDependencies:
   '@types/node':
     specifier: ^22.6.0
@@ -665,7 +670,7 @@ packages:
       '@typescript-eslint/types': 7.8.0
       '@typescript-eslint/typescript-estree': 7.8.0(typescript@5.4.5)
       '@typescript-eslint/visitor-keys': 7.8.0
-      debug: 4.3.4
+      debug: 4.3.7
       eslint: 8.57.0
       typescript: 5.4.5
     transitivePeerDependencies:
@@ -1749,6 +1754,10 @@ packages:
       picocolors: 1.0.0
       source-map-js: 1.2.0
     dev: true
+
+  /ppm-parser@1.0.1:
+    resolution: {integrity: sha512-q9BsWRhzxv+g1PNRixDFWTn5vxlh4dmysWbnqEmIF74WL8/9i52KJLc/xpLLVBVOcd6DZI7v+JtQE1yPoK/Bvw==}
+    dev: false
 
   /prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
