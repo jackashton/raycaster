@@ -1,3 +1,4 @@
+import { PPMImage } from 'ppm-parser';
 import { Scene } from './types';
 import { Player } from './player';
 import { Map } from './map';
@@ -187,7 +188,7 @@ class FirstPersonRenderer implements Renderer {
     private gl: WebGL2RenderingContext,
     private width: number,
     private height: number,
-    private skybox: { width: number; height: number; values: Uint8Array },
+    private skybox: PPMImage,
   ) {
     this.pixelBuffer = new Uint8Array(this.width * this.height * 4);
 
@@ -234,7 +235,7 @@ class FirstPersonRenderer implements Renderer {
   }
 
   drawSkybox(angle: number) {
-    const { height: textureHeight, width: textureWidth, values } = this.skybox;
+    const { height: textureHeight, width: textureWidth, pixelData } = this.skybox;
 
     // Screen dimensions (half the screen height for the skybox)
     const screenHeight = this.height;
@@ -256,9 +257,9 @@ class FirstPersonRenderer implements Renderer {
 
         // Fetch the pixel color from the texture
         const pixelIndex = (textureY * textureWidth + textureX) * 3;
-        const red = values[pixelIndex];
-        const green = values[pixelIndex + 1];
-        const blue = values[pixelIndex + 2];
+        const red = pixelData[pixelIndex];
+        const green = pixelData[pixelIndex + 1];
+        const blue = pixelData[pixelIndex + 2];
 
         // Set the pixel on the screen
         this.setPixel(x, y, [red, green, blue]);
@@ -450,9 +451,9 @@ class FirstPersonRenderer implements Renderer {
         const pixelIndex =
           (Math.trunc(textureY) * textureSize + Math.trunc(textureX)) * 3 +
           horizontalMapTextureIndex * textureSize * textureSize * 3;
-        const red = map.textures[pixelIndex];
-        const green = map.textures[pixelIndex + 1];
-        const blue = map.textures[pixelIndex + 2];
+        const red = map.textures.pixelData[pixelIndex];
+        const green = map.textures.pixelData[pixelIndex + 1];
+        const blue = map.textures.pixelData[pixelIndex + 2];
 
         this.setPixel(Math.floor(r), y + lineOffset, [red, green, blue]);
 
@@ -472,9 +473,9 @@ class FirstPersonRenderer implements Renderer {
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
           mp * 3 * textureSize * textureSize;
 
-        let red = map.textures[pixelIndex];
-        let green = map.textures[pixelIndex + 1];
-        let blue = map.textures[pixelIndex + 2];
+        let red = map.textures.pixelData[pixelIndex];
+        let green = map.textures.pixelData[pixelIndex + 1];
+        let blue = map.textures.pixelData[pixelIndex + 2];
 
         this.setPixel(Math.floor(r), Math.floor(y), [red, green, blue]);
 
@@ -487,9 +488,9 @@ class FirstPersonRenderer implements Renderer {
               3 +
             mp * 3 * textureSize * textureSize;
 
-          red = map.textures[pixelIndex];
-          green = map.textures[pixelIndex + 1];
-          blue = map.textures[pixelIndex + 2];
+          red = map.textures.pixelData[pixelIndex];
+          green = map.textures.pixelData[pixelIndex + 1];
+          blue = map.textures.pixelData[pixelIndex + 2];
 
           this.setPixel(Math.floor(r), Math.floor(this.height - y), [red, green, blue]);
         }

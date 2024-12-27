@@ -1,10 +1,6 @@
-declare module '*.ppm' {
-  interface PPMData {
-    values: Uint8Array;
-    width: number;
-    height: number;
-  }
+import { PPMImage } from 'ppm-parser';
 
-  const value: PPMData;
+declare module '*.ppm' {
+  const value: PPMImage;
   export default value;
 }

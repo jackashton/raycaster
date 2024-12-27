@@ -4,10 +4,8 @@ import { FirstPersonRenderer } from './renderer';
 import { Scene } from './types';
 import { Vector2D } from './utils/vector';
 
-import tileMap from './assets/textures/tilemap.ppm';
+import textures from './assets/textures/tilemap.ppm';
 import skybox from './assets/textures/skybox.ppm';
-
-const { values: textures } = tileMap;
 
 const mapX = 8;
 const mapY = 8;
