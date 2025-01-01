@@ -88,33 +88,38 @@ export class Player implements GameObject {
   }
 
   update() {
-    let newPlayerPosition = this.position;
+    let moveVector = new Vector2D(0, 0);
+
+    // Forward/backward movement
+    if (this.input.isActionPressed(Action.MOVE_UP)) {
+      moveVector = moveVector.add(this.delta);
+    }
+    if (this.input.isActionPressed(Action.MOVE_DOWN)) {
+      moveVector = moveVector.subtract(this.delta);
+    }
+
+    // Strafing movement
     const moveDirection = this.input.isActionPressed(Action.MOVE_RIGHT)
       ? -1
       : this.input.isActionPressed(Action.MOVE_LEFT)
         ? 1
         : 0;
 
-    // Strafing movement
-    if (moveDirection) {
-      if (this.input.isActionPressed(Action.STRAFE)) {
-        const strafeAngle = this.angle + (Math.PI / 2) * moveDirection;
-        newPlayerPosition = this.position.add(
-          new Vector2D(Math.cos(strafeAngle), -Math.sin(strafeAngle)).multiply(this.moveSpeed),
-        );
-      } else {
-        this.angle = normalizeAngle(this.angle + moveDirection * this.turnSpeed);
-      }
+    if (moveDirection && this.input.isActionPressed(Action.STRAFE)) {
+      const strafeAngle = this.angle + (Math.PI / 2) * moveDirection;
+      moveVector = moveVector.add(new Vector2D(Math.cos(strafeAngle), -Math.sin(strafeAngle)));
+    } else if (moveDirection) {
+      this.angle = normalizeAngle(this.angle + moveDirection * this.turnSpeed);
     }
 
-    // Forward/backward movement
-    if (this.input.isActionPressed(Action.MOVE_UP)) {
-      newPlayerPosition = newPlayerPosition.add(this.delta.multiply(this.moveSpeed));
-    }
-    if (this.input.isActionPressed(Action.MOVE_DOWN)) {
-      newPlayerPosition = newPlayerPosition.subtract(this.delta.multiply(this.moveSpeed));
+    // Normalize movement vector to ensure consistent speed
+    if (moveVector.magnitude() > 0) {
+      moveVector = moveVector.normalize().multiply(this.moveSpeed);
     }
 
+    const newPlayerPosition = this.position.add(moveVector);
+
+    // Collision detection
     const collision = this.mapCollisionManager.checkCollision(newPlayerPosition, this.delta, 10);
 
     if (collision.xCollision) {
