@@ -11,19 +11,20 @@
     "test": "vitest"
   },
   "devDependencies": {
-    "@types/node": "^22.6.0",
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
-    "eslint": "~8.57.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-prettier": "^5.1.3",
-    "eslint-plugin-vitest": "^0.3.22",
-    "prettier": "^3.2.5",
-    "typescript": "~5.4.2",
-    "vite": "~5.0.0",
-    "vite-plugin-dts": "~3.8.1",
-    "vitest": "^2.1.2"
+    "@types/node": "^22.10.3",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "eslint": "~8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-vitest": "^0.3.26",
+    "prettier": "^3.4.2",
+    "typescript": "~5.4.5",
+    "vite": "^5.4.11",
+    "vite-plugin-dts": "~3.8.3",
+    "vitest": "^2.1.8"
   },
   "dependencies": {
-    "ppm-parser": "^1.1.0"
+    "ppm-parser": "^1.1.1",
+    "vite-plugin-ppm": "^1.0.0"
   }
 }
