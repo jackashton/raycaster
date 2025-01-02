@@ -1,4 +1,5 @@
 import { Player } from './player';
+import { Sprite } from './sprite';
 import { Map, MapCollisionManager } from './map';
 import { FirstPersonRenderer } from './renderer';
 import { Scene } from './types';
@@ -55,6 +56,7 @@ const map = new Map(mapW, mapF, mapC, mapX, mapY, mapS, textures, 32);
 const mapCollisionManager = new MapCollisionManager(map);
 scene.addObject(map);
 scene.addObject(new Player(new Vector2D(400, 150), mapCollisionManager));
+scene.addObject(new Sprite(new Vector2D(96, 320), 20 * 8));
 
 let firstPersonRenderer: FirstPersonRenderer;
 // let topdownRenderer: TopDownRenderer;
