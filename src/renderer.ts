@@ -5,6 +5,7 @@ import { Map } from './map';
 import { toClipSpace } from './utils/toClipSpace';
 import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
+import { Sprite } from './sprite';
 
 interface Renderer {
   render(scene: Scene): void;
@@ -184,6 +185,11 @@ class FirstPersonRenderer implements Renderer {
 
   private readonly pixelBuffer: Uint8Array;
 
+  private readonly fov = 60;
+  private readonly raysCount = this.fov * 2;
+  // keeps track of each rays depth / distance to wall hit
+  private readonly depth: number[] = new Array(this.raysCount);
+
   constructor(
     private gl: WebGL2RenderingContext,
     private width: number,
@@ -267,6 +273,32 @@ class FirstPersonRenderer implements Renderer {
     }
   }
 
+  drawSprite(sprite: Sprite, player: Player) {
+    const screenPosition = sprite.position.subtract(player.position);
+    const CS = Math.cos(player.angle);
+    const SN = Math.sin(player.angle);
+
+    const a = screenPosition.y * CS + screenPosition.x * SN;
+    const b = screenPosition.x * CS - screenPosition.y * SN;
+
+    screenPosition.x = a;
+    screenPosition.y = b;
+
+    screenPosition.x = Math.floor((screenPosition.x * 108) / screenPosition.y + this.width / 2);
+    screenPosition.y = Math.floor((sprite.z * 108) / screenPosition.y + this.height / 2);
+
+    // TODO 32 for texture scale should be the same for all textures so make this a global var or class attr
+    const scale = Math.floor(((32 / 8) * this.height) / b);
+
+    for (let y = 0; y < scale * 8; y++) {
+      for (let x = Math.floor(screenPosition.x - scale / 2); x < Math.floor(screenPosition.x + scale / 2); x++) {
+        if (0 < screenPosition.x && screenPosition.x < this.width && b < this.depth[x]) {
+          this.setPixel(x, screenPosition.y - y, [255, 255, 0]);
+        }
+      }
+    }
+  }
+
   render(scene: Scene): void {
     // TODO cache these so we don't have to find them in the scene every time
     let map: Map | undefined;
@@ -283,14 +315,14 @@ class FirstPersonRenderer implements Renderer {
 
     if (!player || !map) throw new Error('Player or Map is not defined');
 
-    const rayAngleDelta = Math.PI / 360;
-    const fov = 120;
+    // equiv to one degree
+    const rayAngleDelta = (2 * Math.PI) / 360;
 
     const textureSize = 32;
 
     const floorTextureCoefficient = 316;
 
-    let rayAngle = player.angle + rayAngleDelta * (fov / 2);
+    let rayAngle = player.angle + rayAngleDelta * (this.fov / 2);
     rayAngle = normalizeAngle(rayAngle);
 
     const offset = new Vector2D(0, 0);
@@ -298,7 +330,7 @@ class FirstPersonRenderer implements Renderer {
 
     this.drawSkybox((player.angle * 180) / Math.PI);
 
-    for (let r = 0; r < fov; r++) {
+    for (let r = 0; r < this.raysCount; r++) {
       let dof = 0;
 
       // Precompute common trigonometric values
@@ -414,6 +446,8 @@ class FirstPersonRenderer implements Renderer {
         distance = distanceVertical;
       }
 
+      this.depth[r] = distance;
+
       // draw walls
       // fix fisheye only on horizontal distance
       const rayAngleFixed = Math.cos(normalizeAngle(player.angle - rayAngle));
@@ -496,8 +530,14 @@ class FirstPersonRenderer implements Renderer {
         }
       }
 
-      // Move to next ray
-      rayAngle = normalizeAngle(rayAngle - rayAngleDelta);
+      // Move to next ray half a deg away
+      rayAngle = normalizeAngle(rayAngle - rayAngleDelta * 0.5);
+    }
+
+    for (const obj of scene.objects) {
+      if (obj instanceof Sprite) {
+        this.drawSprite(obj, player);
+      }
     }
 
     // Upload pixel data to texture
