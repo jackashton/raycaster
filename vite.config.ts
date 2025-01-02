@@ -1,7 +1,7 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
-import fs from 'fs';
 import path from 'path';
+import vitePluginPPM from 'vite-plugin-ppm';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
@@ -18,18 +18,7 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
   },
-  plugins: [
-    {
-      name: 'vite-ppm-loader',
-      transform(_, id) {
-        if (id.endsWith('.ppm')) {
-          const buffer = fs.readFileSync(id);
-          const uint8Array = new Uint8Array(buffer);
-          return `export default new Uint8Array(${JSON.stringify(Array.from(uint8Array))});`;
-        }
-      },
-    },
-  ],
+  plugins: [vitePluginPPM()],
 
   test: {
     globals: true,

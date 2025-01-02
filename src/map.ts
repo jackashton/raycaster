@@ -1,3 +1,4 @@
+import { PPMImage } from 'ppm-parser';
 import { GameObject } from './types';
 import { Vector2D } from './utils/vector';
 
@@ -9,7 +10,7 @@ export class Map implements GameObject {
     public mapX: number,
     public mapY: number,
     public mapS: number,
-    public textures: Uint8Array,
+    public textures: PPMImage,
     public tileSize: number,
   ) {}
 

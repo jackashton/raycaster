@@ -1,9 +1,11 @@
+import { PPMImage } from 'ppm-parser';
 import { Scene } from './types';
 import { Player } from './player';
 import { Map } from './map';
 import { toClipSpace } from './utils/toClipSpace';
 import normalizeAngle from './utils/normalizeAngle';
 import { Vector2D } from './utils/vector';
+import { Sprite } from './sprite';
 
 interface Renderer {
   render(scene: Scene): void;
@@ -183,11 +185,16 @@ class FirstPersonRenderer implements Renderer {
 
   private readonly pixelBuffer: Uint8Array;
 
+  private readonly fov = 60;
+  private readonly raysCount = this.fov * 2;
+  // keeps track of each rays depth / distance to wall hit
+  private readonly depth: number[] = new Array(this.raysCount);
+
   constructor(
     private gl: WebGL2RenderingContext,
     private width: number,
     private height: number,
-    private skybox: { width: number; height: number; values: Uint8Array },
+    private skybox: PPMImage,
   ) {
     this.pixelBuffer = new Uint8Array(this.width * this.height * 4);
 
@@ -234,17 +241,17 @@ class FirstPersonRenderer implements Renderer {
   }
 
   drawSkybox(angle: number) {
-    const { height: textureHeight, width: textureWidth, values } = this.skybox;
+    const { height: textureHeight, width: textureWidth, pixelData } = this.skybox;
 
     // Screen dimensions (half the screen height for the skybox)
-    const screenHeight = this.height / 2;
+    const screenHeight = this.height;
     const screenWidth = this.width;
 
     // Scaling factor to map the texture to the screen
     const scaleY = textureHeight / screenHeight;
     const scaleX = textureWidth / screenWidth;
 
-    for (let y = 0; y < screenHeight; y++) {
+    for (let y = 0; y < screenHeight / 2; y++) {
       for (let x = 0; x < screenWidth; x++) {
         // Map screen coordinates (x, y) to texture coordinates
         const textureY = Math.floor(y * scaleY);
@@ -256,12 +263,38 @@ class FirstPersonRenderer implements Renderer {
 
         // Fetch the pixel color from the texture
         const pixelIndex = (textureY * textureWidth + textureX) * 3;
-        const red = values[pixelIndex];
-        const green = values[pixelIndex + 1];
-        const blue = values[pixelIndex + 2];
+        const red = pixelData[pixelIndex];
+        const green = pixelData[pixelIndex + 1];
+        const blue = pixelData[pixelIndex + 2];
 
         // Set the pixel on the screen
         this.setPixel(x, y, [red, green, blue]);
+      }
+    }
+  }
+
+  drawSprite(sprite: Sprite, player: Player) {
+    const screenPosition = sprite.position.subtract(player.position);
+    const CS = Math.cos(player.angle);
+    const SN = Math.sin(player.angle);
+
+    const a = screenPosition.y * CS + screenPosition.x * SN;
+    const b = screenPosition.x * CS - screenPosition.y * SN;
+
+    screenPosition.x = a;
+    screenPosition.y = b;
+
+    screenPosition.x = Math.floor((screenPosition.x * 108) / screenPosition.y + this.width / 2);
+    screenPosition.y = Math.floor((sprite.z * 108) / screenPosition.y + this.height / 2);
+
+    // TODO 32 for texture scale should be the same for all textures so make this a global var or class attr
+    const scale = Math.floor(((32 / 8) * this.height) / b);
+
+    for (let y = 0; y < scale * 8; y++) {
+      for (let x = Math.floor(screenPosition.x - scale / 2); x < Math.floor(screenPosition.x + scale / 2); x++) {
+        if (0 < screenPosition.x && screenPosition.x < this.width && b < this.depth[x]) {
+          this.setPixel(x, screenPosition.y - y, [255, 255, 0]);
+        }
       }
     }
   }
@@ -282,14 +315,14 @@ class FirstPersonRenderer implements Renderer {
 
     if (!player || !map) throw new Error('Player or Map is not defined');
 
-    const rayAngleDelta = Math.PI / 360;
-    const fov = 120;
+    // equiv to one degree
+    const rayAngleDelta = (2 * Math.PI) / 360;
 
     const textureSize = 32;
 
     const floorTextureCoefficient = 316;
 
-    let rayAngle = player.angle + rayAngleDelta * (fov / 2);
+    let rayAngle = player.angle + rayAngleDelta * (this.fov / 2);
     rayAngle = normalizeAngle(rayAngle);
 
     const offset = new Vector2D(0, 0);
@@ -297,7 +330,7 @@ class FirstPersonRenderer implements Renderer {
 
     this.drawSkybox((player.angle * 180) / Math.PI);
 
-    for (let r = 0; r < fov; r++) {
+    for (let r = 0; r < this.raysCount; r++) {
       let dof = 0;
 
       // Precompute common trigonometric values
@@ -413,6 +446,8 @@ class FirstPersonRenderer implements Renderer {
         distance = distanceVertical;
       }
 
+      this.depth[r] = distance;
+
       // draw walls
       // fix fisheye only on horizontal distance
       const rayAngleFixed = Math.cos(normalizeAngle(player.angle - rayAngle));
@@ -450,9 +485,9 @@ class FirstPersonRenderer implements Renderer {
         const pixelIndex =
           (Math.trunc(textureY) * textureSize + Math.trunc(textureX)) * 3 +
           horizontalMapTextureIndex * textureSize * textureSize * 3;
-        const red = map.textures[pixelIndex];
-        const green = map.textures[pixelIndex + 1];
-        const blue = map.textures[pixelIndex + 2];
+        const red = map.textures.pixelData[pixelIndex];
+        const green = map.textures.pixelData[pixelIndex + 1];
+        const blue = map.textures.pixelData[pixelIndex + 2];
 
         this.setPixel(Math.floor(r), y + lineOffset, [red, green, blue]);
 
@@ -472,9 +507,9 @@ class FirstPersonRenderer implements Renderer {
           ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
           mp * 3 * textureSize * textureSize;
 
-        let red = map.textures[pixelIndex];
-        let green = map.textures[pixelIndex + 1];
-        let blue = map.textures[pixelIndex + 2];
+        let red = map.textures.pixelData[pixelIndex];
+        let green = map.textures.pixelData[pixelIndex + 1];
+        let blue = map.textures.pixelData[pixelIndex + 2];
 
         this.setPixel(Math.floor(r), Math.floor(y), [red, green, blue]);
 
@@ -487,16 +522,22 @@ class FirstPersonRenderer implements Renderer {
               3 +
             mp * 3 * textureSize * textureSize;
 
-          red = map.textures[pixelIndex];
-          green = map.textures[pixelIndex + 1];
-          blue = map.textures[pixelIndex + 2];
+          red = map.textures.pixelData[pixelIndex];
+          green = map.textures.pixelData[pixelIndex + 1];
+          blue = map.textures.pixelData[pixelIndex + 2];
 
           this.setPixel(Math.floor(r), Math.floor(this.height - y), [red, green, blue]);
         }
       }
 
-      // Move to next ray
-      rayAngle = normalizeAngle(rayAngle - rayAngleDelta);
+      // Move to next ray half a deg away
+      rayAngle = normalizeAngle(rayAngle - rayAngleDelta * 0.5);
+    }
+
+    for (const obj of scene.objects) {
+      if (obj instanceof Sprite) {
+        this.drawSprite(obj, player);
+      }
     }
 
     // Upload pixel data to texture

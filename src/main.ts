@@ -1,15 +1,12 @@
 import { Player } from './player';
+import { Sprite } from './sprite';
 import { Map, MapCollisionManager } from './map';
 import { FirstPersonRenderer } from './renderer';
 import { Scene } from './types';
 import { Vector2D } from './utils/vector';
-import parsePPM from './utils/parsePPM';
 
-import tileMap from './assets/textures/tilemap.ppm';
+import textures from './assets/textures/tilemap.ppm';
 import skybox from './assets/textures/skybox.ppm';
-
-const { values: textures } = parsePPM(tileMap);
-const sky = parsePPM(skybox);
 
 const mapX = 8;
 const mapY = 8;
@@ -59,6 +56,7 @@ const map = new Map(mapW, mapF, mapC, mapX, mapY, mapS, textures, 32);
 const mapCollisionManager = new MapCollisionManager(map);
 scene.addObject(map);
 scene.addObject(new Player(new Vector2D(400, 150), mapCollisionManager));
+scene.addObject(new Sprite(new Vector2D(96, 320), 20 * 8));
 
 let firstPersonRenderer: FirstPersonRenderer;
 // let topdownRenderer: TopDownRenderer;
@@ -72,7 +70,7 @@ const init = () => {
     return;
   }
 
-  firstPersonRenderer = new FirstPersonRenderer(gl, canvas.width / 8, canvas.height, sky);
+  firstPersonRenderer = new FirstPersonRenderer(gl, canvas.width / 8, canvas.height, skybox);
   // topdownRenderer = new TopDownRenderer(gl, canvas.width, canvas.height);
 };
 
