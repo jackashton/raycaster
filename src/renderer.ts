@@ -185,6 +185,7 @@ class FirstPersonRenderer implements Renderer {
 
   private readonly pixelBuffer: Uint8Array;
 
+  private readonly textureSize = 32;
   private readonly fov = 60;
   private readonly raysCount = this.fov * 2;
   // keeps track of each rays depth / distance to wall hit
@@ -273,7 +274,7 @@ class FirstPersonRenderer implements Renderer {
     }
   }
 
-  drawSprite(sprite: Sprite, player: Player) {
+  drawSprite(sprite: Sprite, player: Player, textures: PPMImage) {
     const screenPosition = sprite.position.subtract(player.position);
     const CS = Math.cos(player.angle);
     const SN = Math.sin(player.angle);
@@ -288,14 +289,37 @@ class FirstPersonRenderer implements Renderer {
     screenPosition.y = Math.floor((sprite.z * 108) / screenPosition.y + this.height / 2);
 
     // TODO 32 for texture scale should be the same for all textures so make this a global var or class attr
-    const scale = Math.floor(((32 / 8) * this.height) / b);
+    let scale = Math.floor(((32 / 8) * this.height) / b);
+    if (scale < 0) scale = 0;
+    if (scale > 120) scale = 120;
 
-    for (let y = 0; y < scale * 8; y++) {
-      for (let x = Math.floor(screenPosition.x - scale / 2); x < Math.floor(screenPosition.x + scale / 2); x++) {
+    let textureX = 0;
+    let textureY = this.textureSize;
+
+    // square texture
+    const textureXStep = this.textureSize / scale;
+    const textureYStep = this.textureSize / (scale * 8);
+
+    for (let x = Math.floor(screenPosition.x - scale / 2); x < Math.floor(screenPosition.x + scale / 2); x++) {
+      textureY = this.textureSize;
+      for (let y = 0; y < scale * 8; y++) {
         if (0 < screenPosition.x && screenPosition.x < this.width && b < this.depth[x]) {
-          this.setPixel(x, screenPosition.y - y, [255, 255, 0]);
+          const pixelIndex =
+            (Math.trunc(textureY) * this.textureSize + Math.trunc(textureX)) * 3 +
+            (sprite.type - 1) * this.textureSize * this.textureSize * 3;
+          const red = textures.pixelData[pixelIndex];
+          const green = textures.pixelData[pixelIndex + 1];
+          const blue = textures.pixelData[pixelIndex + 2];
+          if (!(red === 255 && green === 0 && blue === 255)) {
+            this.setPixel(x, screenPosition.y - y, [red, green, blue]);
+          }
+          textureY -= textureYStep;
+          if (textureY < 0) {
+            textureY = 0;
+          }
         }
       }
+      textureX += textureXStep;
     }
   }
 
@@ -317,8 +341,6 @@ class FirstPersonRenderer implements Renderer {
 
     // equiv to one degree
     const rayAngleDelta = (2 * Math.PI) / 360;
-
-    const textureSize = 32;
 
     const floorTextureCoefficient = 316;
 
@@ -454,7 +476,7 @@ class FirstPersonRenderer implements Renderer {
       if (distance === distanceHorizontal) distance = distance * rayAngleFixed;
 
       let lineHeight = (map.mapS * this.height) / distance;
-      const textureYStep = textureSize / lineHeight;
+      const textureYStep = this.textureSize / lineHeight;
       let textureYOffset = 0;
 
       if (lineHeight > this.height) {
@@ -469,22 +491,22 @@ class FirstPersonRenderer implements Renderer {
       let textureX = 0;
       if (shade === 1) {
         // up/down walls
-        textureX = (rayPosition.x / 2) % textureSize;
+        textureX = (rayPosition.x / 2) % this.textureSize;
         // flip x coords of texture if ray is going "down", if you don't do this textures will appear flipped on
         // the "south/down" walls of the mapW.
-        if (Math.PI < rayAngle) textureX = textureSize - textureX; // may require  - 1
+        if (Math.PI < rayAngle) textureX = this.textureSize - textureX; // may require  - 1
       } else {
         // left/right walls
-        textureX = (rayPosition.y / 2) % textureSize;
+        textureX = (rayPosition.y / 2) % this.textureSize;
         // flip x coords of texture if ray is going "left", if you don't do this textures will appear flipped on the "west/left"
         // walls of the mapW
-        if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = textureSize - textureX; // may require - 1
+        if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = this.textureSize - textureX; // may require - 1
       }
 
       for (let y = 0; y < lineHeight; y++) {
         const pixelIndex =
-          (Math.trunc(textureY) * textureSize + Math.trunc(textureX)) * 3 +
-          horizontalMapTextureIndex * textureSize * textureSize * 3;
+          (Math.trunc(textureY) * this.textureSize + Math.trunc(textureX)) * 3 +
+          horizontalMapTextureIndex * this.textureSize * this.textureSize * 3;
         const red = map.textures.pixelData[pixelIndex];
         const green = map.textures.pixelData[pixelIndex + 1];
         const blue = map.textures.pixelData[pixelIndex + 2];
@@ -499,13 +521,18 @@ class FirstPersonRenderer implements Renderer {
         // floors
         const dy = y - this.height / 2;
         const textureX =
-          player.position.x / 2 + (Math.cos(rayAngle) * floorTextureCoefficient * textureSize) / dy / rayAngleFixed;
+          player.position.x / 2 +
+          (Math.cos(rayAngle) * floorTextureCoefficient * this.textureSize) / dy / rayAngleFixed;
         const textureY =
-          player.position.y / 2 - (Math.sin(rayAngle) * floorTextureCoefficient * textureSize) / dy / rayAngleFixed;
-        let mp = map.mapF[Math.floor(textureY / textureSize) * map.mapX + Math.floor(textureX / textureSize)] - 1;
+          player.position.y / 2 -
+          (Math.sin(rayAngle) * floorTextureCoefficient * this.textureSize) / dy / rayAngleFixed;
+        let mp =
+          map.mapF[Math.floor(textureY / this.textureSize) * map.mapX + Math.floor(textureX / this.textureSize)] - 1;
         let pixelIndex =
-          ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) * 3 +
-          mp * 3 * textureSize * textureSize;
+          ((Math.floor(textureY) & (this.textureSize - 1)) * this.textureSize +
+            (Math.floor(textureX) & (this.textureSize - 1))) *
+            3 +
+          mp * 3 * this.textureSize * this.textureSize;
 
         let red = map.textures.pixelData[pixelIndex];
         let green = map.textures.pixelData[pixelIndex + 1];
@@ -514,13 +541,14 @@ class FirstPersonRenderer implements Renderer {
         this.setPixel(Math.floor(r), Math.floor(y), [red, green, blue]);
 
         // ceilings
-        mp = map.mapC[Math.floor(textureY / textureSize) * map.mapX + Math.floor(textureX / textureSize)] - 1;
+        mp = map.mapC[Math.floor(textureY / this.textureSize) * map.mapX + Math.floor(textureX / this.textureSize)] - 1;
 
         if (mp > 0) {
           pixelIndex =
-            ((Math.floor(textureY) & (textureSize - 1)) * textureSize + (Math.floor(textureX) & (textureSize - 1))) *
+            ((Math.floor(textureY) & (this.textureSize - 1)) * this.textureSize +
+              (Math.floor(textureX) & (this.textureSize - 1))) *
               3 +
-            mp * 3 * textureSize * textureSize;
+            mp * 3 * this.textureSize * this.textureSize;
 
           red = map.textures.pixelData[pixelIndex];
           green = map.textures.pixelData[pixelIndex + 1];
@@ -536,7 +564,7 @@ class FirstPersonRenderer implements Renderer {
 
     for (const obj of scene.objects) {
       if (obj instanceof Sprite) {
-        this.drawSprite(obj, player);
+        this.drawSprite(obj, player, map.textures);
       }
     }
 

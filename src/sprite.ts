@@ -6,6 +6,7 @@ export class Sprite implements GameObject {
   constructor(
     public position: Vector2D,
     public z: number,
+    public type: number,
   ) {}
 
   update() {}
