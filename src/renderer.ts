@@ -430,22 +430,37 @@ class FirstPersonRenderer implements Renderer {
         offset.y = -offset.x * tan;
       }
 
+      // This logic handles "inset" doors the approach I've decided on here is that if the hit is a door it will do one
+      // more loop extending the ray by the offset (this is why we set the dof = maxDof - 1). We then take the midpoint
+      // between the actual door hit and the next ray position to be the distance to the door thus positioning it
+      // (roughly) in the middle of the block
+      let isDoor = false;
       // Perform raycasting for vertical lines
       while (dof < maxDof) {
         const mx = Math.floor(rayPosition.x / map.mapS);
         const my = Math.floor(rayPosition.y / map.mapS);
         const mp = my * map.mapX + mx;
+
         // hit
-        if (mp < map.mapX * map.mapY && map.mapW[mp] > 0) {
+        if (mp < map.mapX * map.mapY && map.mapW[mp] > 0 && !isDoor) {
           verticalRayPosition.x = rayPosition.x;
           verticalRayPosition.y = rayPosition.y;
           distanceVertical = player.position.distance(verticalRayPosition);
           verticalMapTextureIndex = map.mapW[mp] - 1;
           dof = maxDof;
+          isDoor = map?.mapW[mp] === 4;
+          if (isDoor) {
+            dof = maxDof - 1;
+          }
         } else {
           // go to next line
           rayPosition = rayPosition.add(offset);
           dof++;
+          if (isDoor) {
+            verticalRayPosition.x = (rayPosition.x + verticalRayPosition.x) / 2;
+            verticalRayPosition.y = (rayPosition.y + verticalRayPosition.y) / 2;
+            distanceVertical = player?.position.distance(verticalRayPosition);
+          }
         }
       }
 
