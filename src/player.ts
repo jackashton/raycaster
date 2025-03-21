@@ -130,16 +130,9 @@ export class Player implements GameObject {
       newPlayerPosition.y = this.position.y;
     }
 
-    // Handle interaction collision (for doors)
+    // Handle interaction collision (i.e. for doors)
     if (this.input.isActionPressed(Action.INTERACT)) {
-      const { xCollision, yCollision } = this.mapCollisionManager.checkCollision(newPlayerPosition, this.delta, 25);
-      if (xCollision?.forwardTile === 4) {
-        this.mapCollisionManager.map.mapW[xCollision.forwardTileIndex] = 0;
-      }
-
-      if (yCollision?.forwardTile === 4) {
-        this.mapCollisionManager.map.mapW[yCollision.forwardTileIndex] = 0;
-      }
+      this.mapCollisionManager.checkCollision(newPlayerPosition, this.delta, 25, true);
     }
 
     this.position = newPlayerPosition;

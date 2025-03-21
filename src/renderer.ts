@@ -448,7 +448,8 @@ class FirstPersonRenderer implements Renderer {
           distanceVertical = player.position.distance(verticalRayPosition);
           verticalMapTextureIndex = map.mapW[mp] - 1;
           dof = maxDof;
-          isDoor = map?.mapW[mp] === 4;
+          // TODO better system for this stuff!
+          isDoor = 8 <= map?.mapW[mp] && map?.mapW[mp] <= 17;
           if (isDoor) {
             dof = maxDof - 1;
           }
@@ -526,7 +527,10 @@ class FirstPersonRenderer implements Renderer {
         const green = map.textures.pixelData[pixelIndex + 1];
         const blue = map.textures.pixelData[pixelIndex + 2];
 
-        this.setPixel(Math.floor(r), y + lineOffset, [red, green, blue]);
+        // only render if not magenta
+        if (!(red === 255 && green === 0 && blue === 255)) {
+          this.setPixel(Math.floor(r), y + lineOffset, [red, green, blue]);
+        }
 
         textureY += textureYStep;
       }
@@ -553,7 +557,10 @@ class FirstPersonRenderer implements Renderer {
         let green = map.textures.pixelData[pixelIndex + 1];
         let blue = map.textures.pixelData[pixelIndex + 2];
 
-        this.setPixel(Math.floor(r), Math.floor(y), [red, green, blue]);
+        // only render if not magenta
+        if (!(red === 255 && green === 0 && blue === 255)) {
+          this.setPixel(Math.floor(r), Math.floor(y), [red, green, blue]);
+        }
 
         // ceilings
         mp = map.mapC[Math.floor(textureY / this.textureSize) * map.mapX + Math.floor(textureX / this.textureSize)] - 1;
@@ -569,7 +576,10 @@ class FirstPersonRenderer implements Renderer {
           green = map.textures.pixelData[pixelIndex + 1];
           blue = map.textures.pixelData[pixelIndex + 2];
 
-          this.setPixel(Math.floor(r), Math.floor(this.height - y), [red, green, blue]);
+          // only render if not magenta
+          if (!(red === 255 && green === 0 && blue === 255)) {
+            this.setPixel(Math.floor(r), Math.floor(this.height - y), [red, green, blue]);
+          }
         }
       }
 

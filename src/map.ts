@@ -1,5 +1,5 @@
 import { PPMImage } from 'ppm-parser';
-import { GameObject } from './types';
+import { AnimatedTextures, GameObject } from './types';
 import { Vector2D } from './utils/vector';
 
 export class Map implements GameObject {
@@ -10,11 +10,30 @@ export class Map implements GameObject {
     public mapX: number,
     public mapY: number,
     public mapS: number,
+    public animatedTexturesW: AnimatedTextures,
     public textures: PPMImage,
     public tileSize: number,
   ) {}
 
-  update() {}
+  update(time: number) {
+    for (const textureIndex in this.animatedTexturesW) {
+      const anim = this.animatedTexturesW[textureIndex];
+
+      if (anim.currentFrame < anim.frames.length - 1) {
+        if (time - anim.lastTime > anim.duration) {
+          anim.currentFrame++;
+          anim.lastTime = time;
+
+          // Update the tile index in mapW to reflect animation progress
+          for (let i = 0; i < this.mapW.length; i++) {
+            if (this.mapW[i] === anim.frames[anim.currentFrame - 1]) {
+              this.mapW[i] = anim.frames[anim.currentFrame];
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 export class MapCollisionManager {
@@ -24,7 +43,7 @@ export class MapCollisionManager {
     this.map = map;
   }
 
-  checkCollision(position: Vector2D, delta: Vector2D, offsetSize: number) {
+  checkCollision(position: Vector2D, delta: Vector2D, offsetSize: number, isInteracting: boolean = false) {
     const offset = new Vector2D((delta.x < 0 ? -1 : 1) * offsetSize, (delta.y < 0 ? -1 : 1) * offsetSize);
 
     let xCollisionPoint: Vector2D | null = null;
@@ -74,6 +93,24 @@ export class MapCollisionManager {
           : Math.floor(position.y / this.map.tileSize) * this.map.tileSize;
 
       yCollisionPoint = new Vector2D(position.x + delta.x, collisionY);
+    }
+
+    // Handle interactions (e.g., opening a door)
+    if (isInteracting) {
+      if (xForwardTile === 8) {
+        this.map.animatedTexturesW[8].currentFrame = 0; // Start animation
+        this.map.animatedTexturesW[8].lastTime = performance.now();
+
+        // Mark the specific tile as animated
+        this.map.mapW[xForwardTileIndex] = this.map.animatedTexturesW[8].frames[0];
+      }
+      if (yForwardTile === 8) {
+        this.map.animatedTexturesW[8].currentFrame = 0; // Start animation
+        this.map.animatedTexturesW[8].lastTime = performance.now();
+
+        // Mark the specific tile as animated
+        this.map.mapW[yForwardTileIndex] = this.map.animatedTexturesW[8].frames[0];
+      }
     }
 
     return {
