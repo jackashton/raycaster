@@ -9,3 +9,12 @@ export class Scene {
     this.objects.push(obj);
   }
 }
+
+export type AnimatedTexture = {
+  frames: number[];
+  duration: number;
+  currentFrame: number;
+  lastTime: number;
+};
+
+export type AnimatedTextures = Record<number, AnimatedTexture>;
