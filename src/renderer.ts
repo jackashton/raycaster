@@ -172,6 +172,7 @@ type RayHit = {
   position: Vector2D;
   isTransparent: boolean;
   shade: number;
+  side: 'horizontal' | 'vertical';
 };
 
 class FirstPersonRenderer implements Renderer {
@@ -423,7 +424,8 @@ class FirstPersonRenderer implements Renderer {
             distance: distanceHorizontal,
             position: horizontalRayPosition.clone(),
             isTransparent,
-            shade: 0,
+            shade: 1,
+            side: 'horizontal',
           });
 
           if (isTransparent) {
@@ -487,6 +489,7 @@ class FirstPersonRenderer implements Renderer {
             position: verticalRayPosition.clone(),
             isTransparent,
             shade: 0.5,
+            side: 'vertical',
           });
 
           if (isTransparent) {
@@ -530,13 +533,14 @@ class FirstPersonRenderer implements Renderer {
         const lineOffset = this.height / 2 - (lineHeight >> 1);
         let textureY = textureYOffset * textureYStep;
 
-        // Calculate textureX coordinate (same as before)
         let textureX = 0;
-        if (hit.shade === 1) {
-          textureX = (hit.position.x / 2) % this.textureSize;
+        if (hit.side === 'horizontal') {
+          const cellX = Math.floor(hit.position.x / map.mapS) * map.mapS;
+          textureX = ((hit.position.x - cellX) / map.mapS) * this.textureSize;
           if (Math.PI < rayAngle) textureX = this.textureSize - textureX;
         } else {
-          textureX = (hit.position.y / 2) % this.textureSize;
+          const cellY = Math.floor(hit.position.y / map.mapS) * map.mapS;
+          textureX = ((hit.position.y - cellY) / map.mapS) * this.textureSize;
           if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = this.textureSize - textureX;
         }
 
