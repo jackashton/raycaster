@@ -419,14 +419,24 @@ class FirstPersonRenderer implements Renderer {
 
           const isTransparent = isDoor(map.mapW[mp]);
 
-          hits.push({
+          const hit: RayHit = {
             textureIndex: horizontalMapTextureIndex,
             distance: distanceHorizontal,
             position: horizontalRayPosition.clone(),
             isTransparent,
             shade: 1,
             side: 'horizontal',
-          });
+          };
+
+          const isInset = isTransparent;
+          if (isInset) {
+            const midpoint = hit.position.add(rayPosition.add(offset)).multiply(0.5);
+            const fakeDistance = player.position.distance(midpoint);
+            hit.distance = fakeDistance;
+            hit.position = midpoint;
+          }
+
+          hits.push(hit);
 
           if (!isTransparent) {
             dof = maxDof;
@@ -479,14 +489,24 @@ class FirstPersonRenderer implements Renderer {
 
           // TODO better system for this stuff!
           const isTransparent = isDoor(map.mapW[mp]);
-          hits.push({
+          const hit: RayHit = {
             textureIndex: verticalMapTextureIndex,
             distance: distanceVertical,
             position: verticalRayPosition.clone(),
             isTransparent,
             shade: 0.5,
             side: 'vertical',
-          });
+          };
+
+          const isInset = isTransparent;
+          if (isInset) {
+            const midpoint = hit.position.add(rayPosition.add(offset)).multiply(0.5);
+            const fakeDistance = player.position.distance(midpoint);
+            hit.distance = fakeDistance;
+            hit.position = midpoint;
+          }
+
+          hits.push(hit);
 
           if (!isTransparent) {
             dof = maxDof;
