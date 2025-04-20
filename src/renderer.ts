@@ -428,18 +428,14 @@ class FirstPersonRenderer implements Renderer {
             side: 'horizontal',
           });
 
-          if (isTransparent) {
-            // go to next line
-            rayPosition = rayPosition.add(offset);
-            dof++;
-          } else {
+          if (!isTransparent) {
             dof = maxDof;
           }
-        } else {
-          // go to next line
-          rayPosition = rayPosition.add(offset);
-          dof++;
         }
+
+        // go to next line
+        rayPosition = rayPosition.add(offset);
+        dof++;
       }
 
       dof = 0; // Reset for vertical check
@@ -492,23 +488,14 @@ class FirstPersonRenderer implements Renderer {
             side: 'vertical',
           });
 
-          if (isTransparent) {
-            // go to next line
-            rayPosition = rayPosition.add(offset);
-            dof++;
-          } else {
+          if (!isTransparent) {
             dof = maxDof;
           }
-        } else {
-          // go to next line
-          rayPosition = rayPosition.add(offset);
-          dof++;
         }
+        // go to next line
+        rayPosition = rayPosition.add(offset);
+        dof++;
       }
-
-      console.log('called?');
-
-      // this.depth[r] = distance;
 
       // draw walls
       // fix fisheye only on horizontal distance
