@@ -503,6 +503,58 @@ class FirstPersonRenderer implements Renderer {
 
       hits.sort((a, b) => b.distance - a.distance);
 
+      const closestHit = hits[hits.length - 1]; // closest to player
+      const closestDistance = closestHit?.distance ?? 1;
+      this.depth[r] = closestDistance; // used later for sprite occlusion
+
+      // draw floors and ceilings
+      for (let y = this.height / 2; y < this.height; y++) {
+        // floors
+        const dy = y - this.height / 2;
+        const textureX =
+          player.position.x / 2 +
+          (Math.cos(rayAngle) * floorTextureCoefficient * this.textureSize) / dy / rayAngleFixed;
+        const textureY =
+          player.position.y / 2 -
+          (Math.sin(rayAngle) * floorTextureCoefficient * this.textureSize) / dy / rayAngleFixed;
+        let mp =
+          map.mapF[Math.floor(textureY / this.textureSize) * map.mapX + Math.floor(textureX / this.textureSize)] - 1;
+        let pixelIndex =
+          ((Math.floor(textureY) & (this.textureSize - 1)) * this.textureSize +
+            (Math.floor(textureX) & (this.textureSize - 1))) *
+            3 +
+          mp * 3 * this.textureSize * this.textureSize;
+
+        let red = map.textures.pixelData[pixelIndex];
+        let green = map.textures.pixelData[pixelIndex + 1];
+        let blue = map.textures.pixelData[pixelIndex + 2];
+
+        // only render if not magenta
+        if (!(red === 255 && green === 0 && blue === 255)) {
+          this.setPixel(Math.floor(r), Math.floor(y), [red, green, blue]);
+        }
+
+        // ceilings
+        mp = map.mapC[Math.floor(textureY / this.textureSize) * map.mapX + Math.floor(textureX / this.textureSize)] - 1;
+
+        if (mp > 0) {
+          pixelIndex =
+            ((Math.floor(textureY) & (this.textureSize - 1)) * this.textureSize +
+              (Math.floor(textureX) & (this.textureSize - 1))) *
+              3 +
+            mp * 3 * this.textureSize * this.textureSize;
+
+          red = map.textures.pixelData[pixelIndex];
+          green = map.textures.pixelData[pixelIndex + 1];
+          blue = map.textures.pixelData[pixelIndex + 2];
+
+          // only render if not magenta
+          if (!(red === 255 && green === 0 && blue === 255)) {
+            this.setPixel(Math.floor(r), Math.floor(this.height - y), [red, green, blue]);
+          }
+        }
+      }
+
       // Sort from farthest to closest (render back-to-front)
       for (const hit of hits) {
         // Correct for fisheye
@@ -550,60 +602,8 @@ class FirstPersonRenderer implements Renderer {
         }
       }
 
-      const closestHit = hits[hits.length - 1]; // closest to player
-      const closestDistance = closestHit?.distance ?? 1;
-      this.depth[r] = closestDistance; // used later for sprite occlusion
-
-      const lineHeight = (map.mapS * this.height) / (closestDistance * rayAngleFixed);
-      const lineOffset = this.height / 2 - (lineHeight >> 1);
-
-      // draw floors and ceilings
-      for (let y = lineOffset + lineHeight; y < this.height; y++) {
-        // floors
-        const dy = y - this.height / 2;
-        const textureX =
-          player.position.x / 2 +
-          (Math.cos(rayAngle) * floorTextureCoefficient * this.textureSize) / dy / rayAngleFixed;
-        const textureY =
-          player.position.y / 2 -
-          (Math.sin(rayAngle) * floorTextureCoefficient * this.textureSize) / dy / rayAngleFixed;
-        let mp =
-          map.mapF[Math.floor(textureY / this.textureSize) * map.mapX + Math.floor(textureX / this.textureSize)] - 1;
-        let pixelIndex =
-          ((Math.floor(textureY) & (this.textureSize - 1)) * this.textureSize +
-            (Math.floor(textureX) & (this.textureSize - 1))) *
-            3 +
-          mp * 3 * this.textureSize * this.textureSize;
-
-        let red = map.textures.pixelData[pixelIndex];
-        let green = map.textures.pixelData[pixelIndex + 1];
-        let blue = map.textures.pixelData[pixelIndex + 2];
-
-        // only render if not magenta
-        if (!(red === 255 && green === 0 && blue === 255)) {
-          this.setPixel(Math.floor(r), Math.floor(y), [red, green, blue]);
-        }
-
-        // ceilings
-        mp = map.mapC[Math.floor(textureY / this.textureSize) * map.mapX + Math.floor(textureX / this.textureSize)] - 1;
-
-        if (mp > 0) {
-          pixelIndex =
-            ((Math.floor(textureY) & (this.textureSize - 1)) * this.textureSize +
-              (Math.floor(textureX) & (this.textureSize - 1))) *
-              3 +
-            mp * 3 * this.textureSize * this.textureSize;
-
-          red = map.textures.pixelData[pixelIndex];
-          green = map.textures.pixelData[pixelIndex + 1];
-          blue = map.textures.pixelData[pixelIndex + 2];
-
-          // only render if not magenta
-          if (!(red === 255 && green === 0 && blue === 255)) {
-            this.setPixel(Math.floor(r), Math.floor(this.height - y), [red, green, blue]);
-          }
-        }
-      }
+      // const lineHeight = (map.mapS * this.height) / (closestDistance * rayAngleFixed);
+      // const lineOffset = this.height / 2 - (lineHeight >> 1);
 
       // Move to next ray half a deg away
       rayAngle = normalizeAngle(rayAngle - rayAngleDelta * 0.5);
