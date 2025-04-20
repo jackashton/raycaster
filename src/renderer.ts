@@ -161,6 +161,19 @@ class TopDownRenderer implements Renderer {
   }
 }
 
+// TODO obviously replace this with a generalised method for checking any transparent texture
+function isDoor(id: number) {
+  return 8 <= id && id <= 17;
+}
+
+type RayHit = {
+  textureIndex: number;
+  distance: number;
+  position: Vector2D;
+  isTransparent: boolean;
+  shade: number;
+};
+
 class FirstPersonRenderer implements Renderer {
   vertexShaderSource = `
     attribute vec2 a_position;
@@ -389,6 +402,8 @@ class FirstPersonRenderer implements Renderer {
         dof = maxDof;
       }
 
+      const hits: RayHit[] = [];
+
       // Perform raycasting for horizontal lines
       while (dof < maxDof) {
         const mx = Math.floor(rayPosition.x / map.mapS);
@@ -400,7 +415,24 @@ class FirstPersonRenderer implements Renderer {
           horizontalRayPosition.y = rayPosition.y;
           distanceHorizontal = player.position.distance(horizontalRayPosition);
           horizontalMapTextureIndex = map.mapW[mp] - 1;
-          dof = maxDof;
+
+          const isTransparent = isDoor(map.mapW[mp]);
+
+          hits.push({
+            textureIndex: horizontalMapTextureIndex,
+            distance: distanceHorizontal,
+            position: horizontalRayPosition.clone(),
+            isTransparent,
+            shade: 0,
+          });
+
+          if (isTransparent) {
+            // go to next line
+            rayPosition = rayPosition.add(offset);
+            dof++;
+          } else {
+            dof = maxDof;
+          }
         } else {
           // go to next line
           rayPosition = rayPosition.add(offset);
@@ -434,7 +466,6 @@ class FirstPersonRenderer implements Renderer {
       // more loop extending the ray by the offset (this is why we set the dof = maxDof - 1). We then take the midpoint
       // between the actual door hit and the next ray position to be the distance to the door thus positioning it
       // (roughly) in the middle of the block
-      let isDoor = false;
       // Perform raycasting for vertical lines
       while (dof < maxDof) {
         const mx = Math.floor(rayPosition.x / map.mapS);
@@ -442,98 +473,98 @@ class FirstPersonRenderer implements Renderer {
         const mp = my * map.mapX + mx;
 
         // hit
-        if (mp < map.mapX * map.mapY && map.mapW[mp] > 0 && !isDoor) {
+        if (mp < map.mapX * map.mapY && map.mapW[mp] > 0) {
           verticalRayPosition.x = rayPosition.x;
           verticalRayPosition.y = rayPosition.y;
           distanceVertical = player.position.distance(verticalRayPosition);
           verticalMapTextureIndex = map.mapW[mp] - 1;
-          dof = maxDof;
+
           // TODO better system for this stuff!
-          isDoor = 8 <= map?.mapW[mp] && map?.mapW[mp] <= 17;
-          if (isDoor) {
-            dof = maxDof - 1;
+          const isTransparent = isDoor(map.mapW[mp]);
+          hits.push({
+            textureIndex: verticalMapTextureIndex,
+            distance: distanceVertical,
+            position: verticalRayPosition.clone(),
+            isTransparent,
+            shade: 0.5,
+          });
+
+          if (isTransparent) {
+            // go to next line
+            rayPosition = rayPosition.add(offset);
+            dof++;
+          } else {
+            dof = maxDof;
           }
         } else {
           // go to next line
           rayPosition = rayPosition.add(offset);
           dof++;
-          if (isDoor) {
-            verticalRayPosition.x = (rayPosition.x + verticalRayPosition.x) / 2;
-            verticalRayPosition.y = (rayPosition.y + verticalRayPosition.y) / 2;
-            distanceVertical = player?.position.distance(verticalRayPosition);
-          }
         }
       }
 
-      let distance = 0;
-      let shade = 1;
+      console.log('called?');
 
-      if (distanceVertical < distanceHorizontal) {
-        rayPosition.x = verticalRayPosition.x;
-        rayPosition.y = verticalRayPosition.y;
-        distanceHorizontal = distanceVertical;
-        distance = distanceHorizontal;
-        horizontalMapTextureIndex = verticalMapTextureIndex;
-        shade = 0.5;
-      }
-
-      if (distanceHorizontal < distanceVertical) {
-        rayPosition.x = horizontalRayPosition.x;
-        rayPosition.y = horizontalRayPosition.y;
-        distanceVertical = distanceHorizontal;
-        distance = distanceVertical;
-      }
-
-      this.depth[r] = distance;
+      // this.depth[r] = distance;
 
       // draw walls
       // fix fisheye only on horizontal distance
       const rayAngleFixed = Math.cos(normalizeAngle(player.angle - rayAngle));
-      if (distance === distanceHorizontal) distance = distance * rayAngleFixed;
 
-      let lineHeight = (map.mapS * this.height) / distance;
-      const textureYStep = this.textureSize / lineHeight;
-      let textureYOffset = 0;
+      hits.sort((a, b) => b.distance - a.distance);
 
-      if (lineHeight > this.height) {
-        textureYOffset = (lineHeight - this.height) / 2;
-        lineHeight = this.height;
-      }
+      // Sort from farthest to closest (render back-to-front)
+      for (const hit of hits) {
+        // Correct for fisheye
+        const correctedDistance = hit.distance * rayAngleFixed;
 
-      const lineOffset = this.height / 2 - (lineHeight >> 1);
+        let lineHeight = (map.mapS * this.height) / correctedDistance;
+        const textureYStep = this.textureSize / lineHeight;
+        let textureYOffset = 0;
 
-      let textureY = textureYOffset * textureYStep;
-
-      let textureX = 0;
-      if (shade === 1) {
-        // up/down walls
-        textureX = (rayPosition.x / 2) % this.textureSize;
-        // flip x coords of texture if ray is going "down", if you don't do this textures will appear flipped on
-        // the "south/down" walls of the mapW.
-        if (Math.PI < rayAngle) textureX = this.textureSize - textureX; // may require  - 1
-      } else {
-        // left/right walls
-        textureX = (rayPosition.y / 2) % this.textureSize;
-        // flip x coords of texture if ray is going "left", if you don't do this textures will appear flipped on the "west/left"
-        // walls of the mapW
-        if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = this.textureSize - textureX; // may require - 1
-      }
-
-      for (let y = 0; y < lineHeight; y++) {
-        const pixelIndex =
-          (Math.trunc(textureY) * this.textureSize + Math.trunc(textureX)) * 3 +
-          horizontalMapTextureIndex * this.textureSize * this.textureSize * 3;
-        const red = map.textures.pixelData[pixelIndex];
-        const green = map.textures.pixelData[pixelIndex + 1];
-        const blue = map.textures.pixelData[pixelIndex + 2];
-
-        // only render if not magenta
-        if (!(red === 255 && green === 0 && blue === 255)) {
-          this.setPixel(Math.floor(r), y + lineOffset, [red, green, blue]);
+        if (lineHeight > this.height) {
+          textureYOffset = (lineHeight - this.height) / 2;
+          lineHeight = this.height;
         }
 
-        textureY += textureYStep;
+        const lineOffset = this.height / 2 - (lineHeight >> 1);
+        let textureY = textureYOffset * textureYStep;
+
+        // Calculate textureX coordinate (same as before)
+        let textureX = 0;
+        if (hit.shade === 1) {
+          textureX = (hit.position.x / 2) % this.textureSize;
+          if (Math.PI < rayAngle) textureX = this.textureSize - textureX;
+        } else {
+          textureX = (hit.position.y / 2) % this.textureSize;
+          if (Math.PI / 2 < rayAngle && rayAngle < (3 * Math.PI) / 2) textureX = this.textureSize - textureX;
+        }
+
+        // Draw vertical line (column)
+        for (let y = 0; y < lineHeight; y++) {
+          const pixelIndex =
+            (Math.trunc(textureY) * this.textureSize + Math.trunc(textureX)) * 3 +
+            hit.textureIndex * this.textureSize * this.textureSize * 3;
+
+          const red = map.textures.pixelData[pixelIndex];
+          const green = map.textures.pixelData[pixelIndex + 1];
+          const blue = map.textures.pixelData[pixelIndex + 2];
+
+          // Skip transparent pixels (magenta)
+          if (!(red === 255 && green === 0 && blue === 255)) {
+            this.setPixel(r, y + lineOffset, [red, green, blue]);
+          }
+
+          textureY += textureYStep;
+        }
       }
+
+      const closestHit = hits[hits.length - 1]; // closest to player
+      const closestDistance = closestHit?.distance ?? 1;
+      this.depth[r] = closestDistance; // used later for sprite occlusion
+
+      const lineHeight = (map.mapS * this.height) / (closestDistance * rayAngleFixed);
+      const lineOffset = this.height / 2 - (lineHeight >> 1);
 
       // draw floors and ceilings
       for (let y = lineOffset + lineHeight; y < this.height; y++) {
